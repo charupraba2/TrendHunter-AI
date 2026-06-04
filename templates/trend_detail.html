@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if trend %}
+<section class="detail-hero">
+  <p class="eyebrow">Trend Details</p>
+  <h1>{{ trend.name }}</h1>
+  <p class="lead">{{ trend.summary }}</p>
+  <div class="metrics">
+    <span>Source: {{ trend.source }}</span>
+    <span>Category: {{ trend.category }}</span>
+    <span>Virality: {{ trend.virality_score or 0 }}</span>
+    <span>Sentiment: {{ trend.sentiment_label or "Neutral" }}</span>
+    <span>Prediction: {{ trend.prediction_label or "Pending" }}</span>
+    <span>Confidence: {{ trend.forecast_confidence or 0 }}</span>
+  </div>
+</section>
+
+<section class="feature-card">
+  <h2>Starter Content Brief</h2>
+  <p><strong>Hook:</strong> {{ trend.summary }}</p>
+  {% if trend.content_brief %}
+  <ul class="brief-list">
+    {% for angle in trend.content_brief.angles %}
+    <li>{{ angle }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+{% if trend.content_idea %}
+<section class="feature-card">
+  <h2>Generated Content Idea</h2>
+  <div class="brief-list">
+    <p><strong>Hook:</strong> {{ trend.content_idea.hook }}</p>
+    <p><strong>Reel Idea:</strong> {{ trend.content_idea.reel_idea }}</p>
+    <p><strong>YouTube Shorts Idea:</strong> {{ trend.content_idea.youtube_shorts_idea }}</p>
+    <p><strong>Caption:</strong> {{ trend.content_idea.caption }}</p>
+    <p><strong>Hashtags:</strong> {{ trend.content_idea.hashtags | join(' ') }}</p>
+    <p><strong>Content Angle:</strong> {{ trend.content_idea.content_angle }}</p>
+  </div>
+</section>
+{% endif %}
+
+{% if trend.prediction_label or trend.virality_probability is not none %}
+<section class="feature-card">
+  <h2>AI Forecast</h2>
+  <div class="brief-list">
+    <p><strong>Prediction Label:</strong> {{ trend.prediction_label or "Pending" }}</p>
+    <p><strong>Growth Stage:</strong> {{ trend.growth_stage or "growing" }}</p>
+    <p><strong>Virality Probability:</strong> {{ trend.virality_probability or 0 }}</p>
+    <p><strong>Forecast Confidence:</strong> {{ trend.forecast_confidence or 0 }}</p>
+    <p><strong>Opportunity Score:</strong> {{ trend.opportunity_score or 0 }}</p>
+    <p><strong>Risk Score:</strong> {{ trend.risk_score or 0 }}</p>
+  </div>
+</section>
+{% endif %}
+{% else %}
+<section class="feature-card">
+  <h1>Trend not found</h1>
+  <p>The requested trend does not exist in the starter dataset.</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-shell" id="dashboard-app" data-trends-api="/api/trends">
+  <div class="dashboard-hero glass-panel">
+    <div class="dashboard-hero__copy">
+      <p class="eyebrow">AI Command Center</p>
+      <h1>Unified trends workspace</h1>
+      <p class="lead dashboard-lead">
+        Explore Reddit, Google Trends, News, and YouTube with premium filters, live forecasting, and direct access to analysis, content ideas, and alerts.
+      </p>
+    </div>
+
+    <div class="dashboard-actions">
+      <button class="button secondary dashboard-button" id="fetch-reddit-btn" type="button">Fetch Reddit Trends</button>
+      <button class="button secondary dashboard-button" id="fetch-google-btn" type="button">Fetch Google Trends</button>
+      <button class="button secondary dashboard-button" id="fetch-live-btn" type="button">Fetch Live Trends</button>
+      <button class="button secondary dashboard-button" id="analyze-trends-btn" type="button">Analyze Trends</button>
+      <button class="button secondary dashboard-button" id="rag-analyze-btn" type="button">RAG Analyze</button>
+      <button class="button secondary dashboard-button" id="forecast-trends-btn" type="button">AI Forecast</button>
+      <button class="button secondary dashboard-button" id="generate-content-btn" type="button">Generate Content Ideas</button>
+      <button class="button secondary dashboard-button" id="generate-alerts-btn" type="button">Generate Alerts</button>
+      <button class="button primary button--glow dashboard-button" id="refresh-dashboard-btn" type="button">Refresh Dashboard</button>
+    </div>
+  </div>
+
+  <section class="live-panel glass-panel">
+    <div class="live-panel__top">
+      <div class="live-status">
+        <span class="live-status__badge">LIVE</span>
+        <span class="live-status__dot" id="live-status-dot"></span>
+        <span class="live-status__text" id="live-status-text">Connecting to live dashboard...</span>
+      </div>
+      <div class="live-meta">
+        <span>Online users: <strong id="live-online-count">0</strong></span>
+        <span>Last updated: <strong id="live-updated-at">Waiting...</strong></span>
+        <label class="live-sound-toggle">
+          <input id="sound-toggle" type="checkbox" />
+          <span>Sound alerts</span>
+        </label>
+      </div>
+    </div>
+    <div class="live-ticker" id="live-ticker">
+      <span>Waiting for live updates...</span>
+    </div>
+    <div class="live-activity">
+      <div class="section-header live-activity__header">
+        <div>
+          <p class="eyebrow">Activity Feed</p>
+          <h2>Live dashboard events</h2>
+        </div>
+      </div>
+      <div class="live-activity__list" id="live-activity-feed"></div>
+    </div>
+  </section>
+
+  <section class="alerts-panel glass-panel">
+    <div class="section-header alerts-panel__header">
+      <div>
+        <p class="eyebrow">Alerts</p>
+        <h2>High viral trend alerts</h2>
+      </div>
+      <p class="section-copy">Monitor breakout opportunities and mark them as read when you've acted on them.</p>
+    </div>
+    <div class="alerts-list" id="alerts-list"></div>
+    <div class="empty-state alerts-empty" id="alerts-empty">
+      <h3>No alerts yet</h3>
+      <p>Run analysis and generate alerts to surface breakout opportunities before they cool off.</p>
+    </div>
+  </section>
+
+  <div class="dashboard-summary">
+    <div class="stat-card glass-panel">
+      <span class="summary-label">Total Trends</span>
+      <strong id="stat-total">0</strong>
+      <p>Matching current filters</p>
+    </div>
+    <div class="stat-card glass-panel">
+      <span class="summary-label">High Viral Trends</span>
+      <strong id="stat-high-viral">0</strong>
+      <p>Score 75 or higher</p>
+    </div>
+    <div class="stat-card glass-panel">
+      <span class="summary-label">Active Alerts</span>
+      <strong id="stat-active-alerts">0</strong>
+      <p>Unread high-viral alerts</p>
+    </div>
+    <div class="stat-card glass-panel">
+      <span class="summary-label">Forecasted Exploding Trends</span>
+      <strong id="stat-exploding-forecasts">0</strong>
+      <p>Prediction label EXPLODING</p>
+    </div>
+  </div>
+
+  <section class="intelligence-panel glass-panel">
+    <div class="section-header intelligence-panel__header">
+      <div>
+        <p class="eyebrow">AI Intelligence Panel</p>
+        <h2>Most important live signals</h2>
+      </div>
+      <p class="section-copy">Track the latest RAG insight, forecast recommendation, top source, and live system status in one place.</p>
+    </div>
+    <div class="intelligence-grid">
+      <article class="intelligence-card">
+        <span>Latest RAG Insight</span>
+        <strong id="intel-rag-title">No RAG insight yet</strong>
+        <p id="intel-rag-text">Run RAG analysis to ground the next move in historical context.</p>
+      </article>
+      <article class="intelligence-card">
+        <span>Latest Forecast Recommendation</span>
+        <strong id="intel-forecast-title">No forecast yet</strong>
+        <p id="intel-forecast-text">Generate a forecast to see the strongest recommendation.</p>
+      </article>
+      <article class="intelligence-card">
+        <span>Top Source Today</span>
+        <strong id="intel-source-title">Not available</strong>
+        <p id="intel-source-text">Fetch or refresh live trends to identify the most active source.</p>
+      </article>
+      <article class="intelligence-card">
+        <span>Current Live Status</span>
+        <strong id="intel-live-title">Connecting</strong>
+        <p id="intel-live-text">Waiting for the websocket dashboard connection to stabilize.</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="forecast-summary">
+    <div class="stat-card glass-panel forecast-widget">
+      <span class="summary-label">Likely to Go Viral</span>
+      <strong id="forecast-likely">0</strong>
+      <p>Exploding or growing trends</p>
+    </div>
+    <div class="stat-card glass-panel forecast-widget">
+      <span class="summary-label">High Opportunity</span>
+      <strong id="forecast-opportunity">0</strong>
+      <p>Opportunity score 75+</p>
+    </div>
+    <div class="stat-card glass-panel forecast-widget">
+      <span class="summary-label">Risky Trend</span>
+      <strong id="forecast-risky">0</strong>
+      <p>High risk or saturation signals</p>
+    </div>
+    <div class="stat-card glass-panel forecast-widget">
+      <span class="summary-label">Trending Downward</span>
+      <strong id="forecast-downward">0</strong>
+      <p>Declining or saturated trends</p>
+    </div>
+  </div>
+
+  <div class="dashboard-toolbar glass-panel">
+    <div class="toolbar-grid">
+      <label class="control-group">
+        <span>Search</span>
+        <input id="trend-search" type="search" placeholder="Search trends by title or keyword" />
+      </label>
+      <label class="control-group">
+        <span>Platform</span>
+        <select id="platform-filter">
+          <option value="all">All</option>
+          <option value="reddit">Reddit</option>
+          <option value="google_trends">Google Trends</option>
+          <option value="news">News</option>
+          <option value="youtube">YouTube</option>
+        </select>
+      </label>
+      <label class="control-group">
+        <span>Virality</span>
+        <select id="virality-filter">
+          <option value="all">All</option>
+          <option value="High Viral">High Viral</option>
+          <option value="Medium Viral">Medium Viral</option>
+          <option value="Low Viral">Low Viral</option>
+        </select>
+      </label>
+      <label class="control-group">
+        <span>Sentiment</span>
+        <select id="sentiment-filter">
+          <option value="all">All</option>
+          <option value="Positive">Positive</option>
+          <option value="Neutral">Neutral</option>
+          <option value="Negative">Negative</option>
+        </select>
+      </label>
+      <label class="control-group">
+        <span>Sort By</span>
+        <select id="sort-filter">
+          <option value="latest">Latest</option>
+          <option value="virality">Highest Virality Score</option>
+          <option value="upvotes">Most Upvotes</option>
+          <option value="comments">Most Comments</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="dashboard-status" id="dashboard-status" aria-live="polite">
+    <span class="dashboard-status__text">Loading stored trends...</span>
+    <span class="dashboard-status__loader" id="dashboard-loader" aria-hidden="true">
+      <span></span>
+      <span></span>
+      <span></span>
+    </span>
+  </div>
+
+  <section class="trend-board">
+    <div class="trend-board__header">
+      <div>
+        <p class="eyebrow">Latest stored trends</p>
+        <h2>Reddit and Google Trends together</h2>
+      </div>
+    </div>
+
+    <div class="trend-skeletons" id="trend-skeletons" aria-hidden="true">
+      <div class="trend-skeleton"></div>
+      <div class="trend-skeleton"></div>
+      <div class="trend-skeleton"></div>
+    </div>
+    <div class="trend-grid" id="trend-grid"></div>
+    <div class="empty-state glass-panel" id="dashboard-empty">
+      <h3>No trends loaded yet</h3>
+      <p>Use the live fetch buttons to populate the workspace with real trend data.</p>
+    </div>
+  </section>
+</section>
+
+<div class="content-modal" id="content-modal" aria-hidden="true">
+  <div class="content-modal__backdrop" data-close-modal></div>
+  <div class="content-modal__panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="content-modal-title">
+    <button class="modal-close" type="button" data-close-modal aria-label="Close content idea">x</button>
+    <p class="eyebrow">Content Idea</p>
+    <h3 id="content-modal-title">Selected Trend</h3>
+    <div class="content-modal__body" id="content-modal-body"></div>
+  </div>
+</div>
+
+<div class="trend-modal" id="trend-modal" aria-hidden="true">
+  <div class="trend-modal__backdrop" data-close-trend-modal></div>
+  <div class="trend-modal__panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="trend-modal-title">
+    <button class="modal-close" type="button" data-close-trend-modal aria-label="Close trend details">x</button>
+    <p class="eyebrow">Trend Details</p>
+    <h3 id="trend-modal-title">Selected Trend</h3>
+    <div class="trend-modal__body" id="trend-modal-body"></div>
+  </div>
+</div>
+
+<div class="ai-modal" id="ai-modal" aria-hidden="true">
+  <div class="ai-modal__backdrop" data-close-ai-modal></div>
+  <div class="ai-modal__panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+    <button class="modal-close" type="button" data-close-ai-modal aria-label="Close AI summary">x</button>
+    <p class="eyebrow">AI Summary</p>
+    <h3 id="ai-modal-title">Trend Analysis</h3>
+    <div class="ai-modal__body" id="ai-modal-body"></div>
+  </div>
+</div>
+
+<div class="rag-modal" id="rag-modal" aria-hidden="true">
+  <div class="rag-modal__backdrop" data-close-rag-modal></div>
+  <div class="rag-modal__panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="rag-modal-title">
+    <button class="modal-close" type="button" data-close-rag-modal aria-label="Close RAG analysis">x</button>
+    <p class="eyebrow">RAG Intelligence</p>
+    <h3 id="rag-modal-title">Historical Trend Analysis</h3>
+    <div class="rag-modal__body" id="rag-modal-body"></div>
+  </div>
+</div>
+
+<div class="forecast-modal" id="forecast-modal" aria-hidden="true">
+  <div class="forecast-modal__backdrop" data-close-forecast-modal></div>
+  <div class="forecast-modal__panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="forecast-modal-title">
+    <button class="modal-close" type="button" data-close-forecast-modal aria-label="Close forecast">x</button>
+    <p class="eyebrow">AI Forecast</p>
+    <h3 id="forecast-modal-title">Trend Forecast</h3>
+    <div class="forecast-modal__body" id="forecast-modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" aria-live="polite" aria-atomic="true"></div>
+{% endblock %}
