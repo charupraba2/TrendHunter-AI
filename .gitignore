@@ -2,6 +2,10 @@
 .DS_Store
 .idea/
 .vscode/
+uvicorn-*.log
+uvicorn-*.err
+tmp-uvicorn-*.log
+tmp-uvicorn-*.err
 __pycache__/
 *.pyc
 *.pyo
