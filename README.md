@@ -1,14 +1,88 @@
 ﻿# TrendHunter AI
 
-Real-Time Viral Trend Predictor for Content Creators.
+AI Creator Intelligence Platform for social post optimization and trend support.
 
 This repository provides a production-style starter scaffold for a FastAPI backend, HTML/CSS/JavaScript frontend templates, SQLite storage, and AI-ready service modules for:
 
+- AI creator intelligence and post optimization
+- Virality prediction and growth forecasting
+- RAG-based historical comparison
+- Trend support from Reddit, Google Trends, NewsAPI, and YouTube
 - Reddit trend discovery
 - Google Trends ingestion via PyTrends
 - Sentiment analysis
 - Virality scoring
 - AI-assisted content suggestions
+
+## Creator Intelligence Workflow
+
+TrendHunter AI now prioritizes creator analysis first and uses live trend intelligence as a supporting signal layer.
+
+Users can submit:
+
+- platform
+- post title or idea
+- caption
+- hashtags
+- content type
+- target audience
+
+The Creator Intelligence Lab then analyzes:
+
+- hook strength
+- emotional impact
+- readability
+- audience fit
+- trend alignment
+- opportunity score
+- saturation risk
+- growth potential
+
+The platform returns:
+
+- improved hook
+- better caption
+- better CTA
+- optimized hashtags
+- thumbnail or reel ideas
+- best posting time
+- posting strategy
+- platform-specific optimization tips
+- forecast analysis
+- RAG-based historical comparison
+
+Supported creator platforms:
+
+- Instagram
+- YouTube
+- LinkedIn
+- Twitter/X
+- Reddit
+- TikTok
+- Facebook
+
+### Creator Analysis Endpoint
+
+Submit a post draft to the AI strategist with:
+
+```bash
+POST http://127.0.0.1:8000/api/analyze-creator-content
+```
+
+Example payload:
+
+```json
+{
+  "platform": "instagram",
+  "title": "5 AI content ideas creators should post this week",
+  "caption": "Creators are using AI to speed up ideation and publish faster.",
+  "hashtags": "#creator #ai #contentstrategy",
+  "content_type": "Reel",
+  "audience": "Creators"
+}
+```
+
+The response includes creator recommendations, forecast analysis, RAG context, and optimization guidance for hooks, captions, CTAs, hashtags, and posting strategy.
 
 ## Tech Stack
 

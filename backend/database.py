@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
-from sqlalchemy import JSON, Column, DateTime, Float, Integer, String, create_engine, inspect, text
+from sqlalchemy import Boolean, JSON, Column, DateTime, Float, Integer, String, create_engine, inspect, text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from backend.config import settings
@@ -37,6 +37,7 @@ class Trend(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False, index=True)
     platform = Column(String, nullable=False, default="reddit")
+    region = Column(String, nullable=True, index=True)
     source_label = Column(String, nullable=True)
     source_uid = Column(String, nullable=True, index=True)
     subreddit = Column(String, nullable=False, index=True)
@@ -95,9 +96,110 @@ class Alert(Base):
     title = Column(String, nullable=False)
     platform = Column(String, nullable=False, default="reddit")
     virality_score = Column(Float, nullable=False, default=0.0)
-    virality_label = Column(String, nullable=False, default="Low Viral")
+    virality_label = Column(String, nullable=False, default="Low Reach")
     message = Column(String, nullable=False)
     is_read = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class PostPerformanceRecord(Base):
+    __tablename__ = "post_performance_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    post_url = Column(String, nullable=False, index=True)
+    platform = Column(String, nullable=False, default="instagram")
+    region = Column(String, nullable=False, default="India")
+    source_label = Column(String, nullable=True)
+    content_title = Column(String, nullable=True)
+    likes = Column(Integer, nullable=False, default=0)
+    comments = Column(Integer, nullable=False, default=0)
+    shares = Column(Integer, nullable=False, default=0)
+    reach = Column(Integer, nullable=False, default=0)
+    impressions = Column(Integer, nullable=False, default=0)
+    engagement_growth = Column(Float, nullable=False, default=0.0)
+    virality_momentum = Column(Float, nullable=False, default=0.0)
+    growth_speed = Column(Float, nullable=False, default=0.0)
+    trend_strength = Column(Float, nullable=False, default=0.0)
+    engagement_velocity = Column(Float, nullable=False, default=0.0)
+    trend_relevance = Column(Float, nullable=False, default=0.0)
+    lifecycle_stage = Column(String, nullable=False, default="Stable")
+    should_repost = Column(Boolean, nullable=False, default=False)
+    should_improve_hook = Column(Boolean, nullable=False, default=False)
+    should_shorten_caption = Column(Boolean, nullable=False, default=False)
+    should_follow_up = Column(Boolean, nullable=False, default=False)
+    is_saturated = Column(Boolean, nullable=False, default=False)
+    expected_reach = Column(Integer, nullable=False, default=0)
+    expected_impressions = Column(Integer, nullable=False, default=0)
+    peak_engagement_time = Column(String, nullable=True)
+    engagement_decay = Column(Float, nullable=False, default=0.0)
+    live_metrics_available = Column(Boolean, nullable=False, default=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    recommendations = Column(JSON, nullable=False, default=dict)
+    forecast = Column(JSON, nullable=False, default=dict)
+    chart_data = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_tracked_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False, unique=True, index=True)
+    email = Column(String, nullable=False, unique=True, index=True)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    jti = Column(String, nullable=False, unique=True, index=True)
+    token_hash = Column(String, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    revoked_at = Column(DateTime, nullable=True)
+
+
+class AnalysisRecord(Base):
+    __tablename__ = "analysis_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    trend_title = Column(String, nullable=False, index=True)
+    platform = Column(String, nullable=False, default="linkedin")
+    trend_match_score = Column(Float, nullable=True)
+    virality_score = Column(Float, nullable=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class LinkedInPostRecord(Base):
+    __tablename__ = "linkedin_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    analysis_id = Column(Integer, nullable=True, index=True)
+    title = Column(String, nullable=False, default="")
+    post_text = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ReportRecord(Base):
+    __tablename__ = "reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    analysis_id = Column(Integer, nullable=True, index=True)
+    filename = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
@@ -106,6 +208,10 @@ def init_db() -> None:
     _ensure_trends_columns()
     _ensure_content_ideas_columns()
     _ensure_alerts_columns()
+    _ensure_post_performance_columns()
+    _ensure_users_columns()
+    _ensure_user_sessions_columns()
+    _ensure_workspace_columns()
 
 
 def _ensure_trends_columns() -> None:
@@ -116,6 +222,7 @@ def _ensure_trends_columns() -> None:
     existing_columns = {column["name"] for column in inspector.get_columns("trends")}
     required_columns = {
         "trend_score": "FLOAT",
+        "region": "VARCHAR",
         "source_type": "VARCHAR",
         "source_label": "VARCHAR",
         "source_uid": "VARCHAR",
@@ -197,6 +304,138 @@ def _ensure_alerts_columns() -> None:
                 connection.execute(text(f"ALTER TABLE alerts ADD COLUMN {column_name} {column_type}"))
 
 
+def _ensure_post_performance_columns() -> None:
+    inspector = inspect(engine)
+    if "post_performance_records" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("post_performance_records")}
+    required_columns = {
+        "user_id": "INTEGER",
+        "post_url": "VARCHAR",
+        "platform": "VARCHAR",
+        "region": "VARCHAR",
+        "source_label": "VARCHAR",
+        "content_title": "VARCHAR",
+        "likes": "INTEGER",
+        "comments": "INTEGER",
+        "shares": "INTEGER",
+        "reach": "INTEGER",
+        "impressions": "INTEGER",
+        "engagement_growth": "FLOAT",
+        "virality_momentum": "FLOAT",
+        "growth_speed": "FLOAT",
+        "trend_strength": "FLOAT",
+        "engagement_velocity": "FLOAT",
+        "trend_relevance": "FLOAT",
+        "lifecycle_stage": "VARCHAR",
+        "should_repost": "BOOLEAN",
+        "should_improve_hook": "BOOLEAN",
+        "should_shorten_caption": "BOOLEAN",
+        "should_follow_up": "BOOLEAN",
+        "is_saturated": "BOOLEAN",
+        "expected_reach": "INTEGER",
+        "expected_impressions": "INTEGER",
+        "peak_engagement_time": "VARCHAR",
+        "engagement_decay": "FLOAT",
+        "live_metrics_available": "BOOLEAN",
+        "payload": "JSON",
+        "recommendations": "JSON",
+        "forecast": "JSON",
+        "chart_data": "JSON",
+        "created_at": "DATETIME",
+        "updated_at": "DATETIME",
+        "last_tracked_at": "DATETIME",
+    }
+
+    with engine.begin() as connection:
+        for column_name, column_type in required_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE post_performance_records ADD COLUMN {column_name} {column_type}"))
+
+
+def _ensure_users_columns() -> None:
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    required_columns = {
+        "username": "VARCHAR",
+        "email": "VARCHAR",
+        "password_hash": "VARCHAR",
+        "is_active": "BOOLEAN",
+        "created_at": "DATETIME",
+        "updated_at": "DATETIME",
+    }
+
+    with engine.begin() as connection:
+        for column_name, column_type in required_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+
+
+def _ensure_user_sessions_columns() -> None:
+    inspector = inspect(engine)
+    if "user_sessions" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("user_sessions")}
+    required_columns = {
+        "user_id": "INTEGER",
+        "jti": "VARCHAR",
+        "token_hash": "VARCHAR",
+        "expires_at": "DATETIME",
+        "created_at": "DATETIME",
+        "revoked_at": "DATETIME",
+    }
+
+    with engine.begin() as connection:
+        for column_name, column_type in required_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE user_sessions ADD COLUMN {column_name} {column_type}"))
+
+
+def _ensure_workspace_columns() -> None:
+    inspector = inspect(engine)
+    workspace_tables = {
+        "analysis_records": {
+            "user_id": "INTEGER",
+            "trend_title": "VARCHAR",
+            "platform": "VARCHAR",
+            "trend_match_score": "FLOAT",
+            "virality_score": "FLOAT",
+            "payload": "JSON",
+            "created_at": "DATETIME",
+        },
+        "linkedin_posts": {
+            "user_id": "INTEGER",
+            "analysis_id": "INTEGER",
+            "title": "VARCHAR",
+            "post_text": "VARCHAR",
+            "payload": "JSON",
+            "created_at": "DATETIME",
+        },
+        "reports": {
+            "user_id": "INTEGER",
+            "analysis_id": "INTEGER",
+            "filename": "VARCHAR",
+            "payload": "JSON",
+            "created_at": "DATETIME",
+        },
+    }
+
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as connection:
+        for table_name, columns in workspace_tables.items():
+            if table_name not in existing_tables:
+                continue
+            existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+            for column_name, column_type in columns.items():
+                if column_name not in existing_columns:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+
+
 def get_db_session() -> Session:
     return SessionLocal()
 
@@ -214,6 +453,14 @@ def save_trends(trends: Iterable[dict]) -> int:
             elif not isinstance(created_utc, datetime):
                 created_utc = datetime.utcnow()
 
+            region_value = _normalize_region_value(
+                trend.get("region")
+                or trend.get("selected_region")
+                or trend.get("region_label")
+                or trend.get("region_code")
+                or trend.get("trend_region")
+                or "Global"
+            )
             source_uid = _build_source_uid(trend)
             if source_uid and session.query(Trend.id).filter(Trend.source_uid == source_uid).first():
                 continue
@@ -230,6 +477,7 @@ def save_trends(trends: Iterable[dict]) -> int:
             row = Trend(
                 title=str(trend.get("title", "")).strip(),
                 platform=str(trend.get("platform", "reddit")).strip() or "reddit",
+                region=region_value,
                 source_label=str(trend.get("source_label", "")).strip() or None,
                 source_uid=source_uid,
                 subreddit=str(trend.get("subreddit", "unknown")).strip() or "unknown",
@@ -254,7 +502,7 @@ def save_trends(trends: Iterable[dict]) -> int:
                 compound_score=_to_float(trend.get("compound_score")),
                 sentiment_label=str(trend.get("sentiment_label", "")).strip() or None,
                 virality_score=_to_float(trend.get("virality_score")),
-                virality_label=str(trend.get("virality_label", "")).strip() or None,
+                virality_label=_normalize_virality_label(trend.get("virality_score"), trend.get("virality_label")),
                 virality_probability=_to_float(trend.get("virality_probability")),
                 forecast_confidence=_to_float(trend.get("forecast_confidence")),
                 prediction_label=str(trend.get("prediction_label", "")).strip() or None,
@@ -300,15 +548,14 @@ def save_google_trends(trends: Iterable[dict]) -> int:
     return save_trends(normalized)
 
 
-def get_all_trends(limit: int = 100) -> list[dict]:
+def get_all_trends(limit: int = 100, region: str | None = None) -> list[dict]:
     session = get_db_session()
     try:
-        rows = (
-            session.query(Trend)
-            .order_by(Trend.fetched_at.desc(), Trend.id.desc())
-            .limit(limit)
-            .all()
-        )
+        query = session.query(Trend)
+        region_value = _normalize_region_value(region)
+        if region_value and region_value.lower() != "global":
+            query = query.filter((Trend.region == region_value) | (Trend.region.is_(None)))
+        rows = query.order_by(Trend.fetched_at.desc(), Trend.id.desc()).limit(limit).all()
         return [_trend_to_dict(row) for row in rows]
     finally:
         session.close()
@@ -344,6 +591,7 @@ def _trend_to_dict(row: Trend | None) -> dict | None:
         "title": row.title,
         "name": row.title,
         "platform": row.platform,
+        "region": row.region or "Global",
         "source": row.platform,
         "source_label": row.source_label or row.platform.upper(),
         "source_uid": row.source_uid,
@@ -405,10 +653,64 @@ def _to_float(value) -> float | None:
 def _to_datetime(value) -> datetime | None:
     if value is None or value == "":
         return None
+
+
+def _normalize_region_value(value) -> str:
+    if value is None:
+        return "Global"
+    text = str(value).strip()
+    if not text:
+        return "Global"
+    lowered = text.lower()
+    aliases = {
+        "in": "India",
+        "india": "India",
+        "tamil nadu": "Tamil Nadu",
+        "tamilnadu": "Tamil Nadu",
+        "tn": "Tamil Nadu",
+        "chennai": "Chennai",
+        "trichy": "Trichy",
+        "tiruchirappalli": "Trichy",
+        "global": "Global",
+        "world": "Global",
+        "us": "Global",
+        "usa": "Global",
+    }
+    return aliases.get(lowered, text)
     if isinstance(value, datetime):
         return value
     if isinstance(value, (int, float)):
         return datetime.utcfromtimestamp(value)
+
+
+def _normalize_virality_label(score, label=None) -> str:
+    text = str(label or "").strip()
+    if text:
+        lowered = text.lower()
+        aliases = {
+            "high viral": "High Viral",
+            "trending": "Trending",
+            "average": "Average",
+            "low reach": "Low Reach",
+            "medium viral": "Average",
+            "low viral": "Low Reach",
+        }
+        if lowered in aliases:
+            return aliases[lowered]
+        return text
+
+    try:
+        value = float(score or 0)
+    except (TypeError, ValueError):
+        value = 0.0
+
+    if value >= 85:
+        return "High Viral"
+    if value >= 65:
+        return "Trending"
+    if value >= 45:
+        return "Average"
+    return "Low Reach"
     if isinstance(value, str):
         try:
             return datetime.fromisoformat(value)
@@ -492,7 +794,7 @@ def update_trend_analysis(trend_id: int, analysis: dict) -> dict | None:
         row.compound_score = _to_float(analysis.get("compound_score"))
         row.sentiment_label = str(analysis.get("sentiment_label", "")).strip() or None
         row.virality_score = _to_float(analysis.get("virality_score"))
-        row.virality_label = str(analysis.get("virality_label", "")).strip() or None
+        row.virality_label = _normalize_virality_label(analysis.get("virality_score"), analysis.get("virality_label"))
         row.analyzed_at = _to_datetime(analysis.get("analyzed_at")) or datetime.utcnow()
         session.commit()
         session.refresh(row)
@@ -521,7 +823,7 @@ def update_trend_forecast(trend_id: int, forecast: dict) -> dict | None:
         if forecast.get("virality_score") is not None:
             row.virality_score = _to_float(forecast.get("virality_score"))
         if forecast.get("virality_label"):
-            row.virality_label = str(forecast.get("virality_label", "")).strip() or row.virality_label
+            row.virality_label = _normalize_virality_label(forecast.get("virality_score"), forecast.get("virality_label"))
 
         row.analysis_payload = forecast.get("analysis_payload", row.analysis_payload)
         session.commit()
@@ -614,7 +916,7 @@ def create_alert(trend: dict) -> dict:
             title=str(trend.get("title") or trend.get("name") or "Untitled trend").strip(),
             platform=str(trend.get("platform", "reddit")).strip() or "reddit",
             virality_score=_to_float(trend.get("virality_score")) or 0.0,
-            virality_label=str(trend.get("virality_label", "High Viral")).strip() or "High Viral",
+            virality_label=_normalize_virality_label(trend.get("virality_score"), trend.get("virality_label")),
             message=str(trend.get("message", "")).strip(),
             is_read=0,
             created_at=_to_datetime(trend.get("created_at")) or datetime.utcnow(),
@@ -668,7 +970,7 @@ def get_high_viral_trends_without_alerts(limit: int = 100) -> list[dict]:
         rows = (
             session.query(Trend)
             .filter(Trend.virality_score.isnot(None))
-            .filter(Trend.virality_score >= 75)
+            .filter(Trend.virality_score >= 85)
             .filter(Trend.virality_label == "High Viral")
             .filter(~Trend.id.in_(alert_trend_ids))
             .order_by(Trend.virality_score.desc(), Trend.fetched_at.desc())
@@ -694,4 +996,439 @@ def _alert_to_dict(row: Alert | None) -> dict | None:
         "message": row.message,
         "is_read": bool(row.is_read),
         "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def create_user(username: str, email: str, password_hash: str) -> dict:
+    session = get_db_session()
+    try:
+        row = User(
+            username=username.strip(),
+            email=email.strip().lower(),
+            password_hash=password_hash,
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _user_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    session = get_db_session()
+    try:
+        row = session.query(User).filter(User.id == user_id).first()
+        return _user_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def get_user_by_username(username: str) -> dict | None:
+    session = get_db_session()
+    try:
+        row = session.query(User).filter(User.username == username.strip()).first()
+        return _user_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def get_user_by_email(email: str) -> dict | None:
+    session = get_db_session()
+    try:
+        row = session.query(User).filter(User.email == email.strip().lower()).first()
+        return _user_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def create_user_session(user_id: int, jti: str, token_hash: str, expires_at: datetime) -> dict:
+    session = get_db_session()
+    try:
+        row = UserSession(
+            user_id=user_id,
+            jti=jti,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            created_at=datetime.utcnow(),
+            revoked_at=None,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _user_session_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_user_session_by_jti(jti: str) -> dict | None:
+    session = get_db_session()
+    try:
+        row = session.query(UserSession).filter(UserSession.jti == jti).first()
+        return _user_session_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def revoke_user_session(jti: str) -> dict | None:
+    session = get_db_session()
+    try:
+        row = session.query(UserSession).filter(UserSession.jti == jti).first()
+        if row is None:
+            return None
+        row.revoked_at = datetime.utcnow()
+        session.commit()
+        session.refresh(row)
+        return _user_session_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def _user_to_dict(row: User | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "username": row.username,
+        "email": row.email,
+        "password_hash": row.password_hash,
+        "is_active": bool(row.is_active),
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _user_session_to_dict(row: UserSession | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "jti": row.jti,
+        "token_hash": row.token_hash,
+        "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "revoked_at": row.revoked_at.isoformat() if row.revoked_at else None,
+    }
+
+
+def save_analysis_record(user_id: int, payload: dict, trend_title: str, platform: str, trend_match_score: float | None = None, virality_score: float | None = None) -> dict:
+    session = get_db_session()
+    try:
+        row = AnalysisRecord(
+            user_id=user_id,
+            trend_title=(trend_title or "Untitled analysis").strip(),
+            platform=(platform or "linkedin").strip(),
+            trend_match_score=_to_float(trend_match_score),
+            virality_score=_to_float(virality_score),
+            payload=payload,
+            created_at=datetime.utcnow(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _analysis_record_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def save_linkedin_post_record(user_id: int, post_text: str, payload: dict, analysis_id: int | None = None, title: str = "") -> dict:
+    session = get_db_session()
+    try:
+        row = LinkedInPostRecord(
+            user_id=user_id,
+            analysis_id=analysis_id,
+            title=(title or payload.get("title") or "LinkedIn draft").strip(),
+            post_text=post_text,
+            payload=payload,
+            created_at=datetime.utcnow(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _linkedin_post_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def save_report_record(user_id: int, filename: str, payload: dict, analysis_id: int | None = None) -> dict:
+    session = get_db_session()
+    try:
+        row = ReportRecord(
+            user_id=user_id,
+            analysis_id=analysis_id,
+            filename=filename,
+            payload=payload,
+            created_at=datetime.utcnow(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _report_record_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_user_workspace(user_id: int, limit: int = 10) -> dict:
+    session = get_db_session()
+    try:
+        analyses = (
+            session.query(AnalysisRecord)
+            .filter(AnalysisRecord.user_id == user_id)
+            .order_by(AnalysisRecord.created_at.desc(), AnalysisRecord.id.desc())
+            .limit(limit)
+            .all()
+        )
+        linkedin_posts = (
+            session.query(LinkedInPostRecord)
+            .filter(LinkedInPostRecord.user_id == user_id)
+            .order_by(LinkedInPostRecord.created_at.desc(), LinkedInPostRecord.id.desc())
+            .limit(limit)
+            .all()
+        )
+        reports = (
+            session.query(ReportRecord)
+            .filter(ReportRecord.user_id == user_id)
+            .order_by(ReportRecord.created_at.desc(), ReportRecord.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return {
+            "success": True,
+            "analyses": [_analysis_record_to_dict(row) for row in analyses],
+            "linkedin_posts": [_linkedin_post_to_dict(row) for row in linkedin_posts],
+            "reports": [_report_record_to_dict(row) for row in reports],
+        }
+    finally:
+        session.close()
+
+
+def _analysis_record_to_dict(row: AnalysisRecord | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "trend_title": row.trend_title,
+        "platform": row.platform,
+        "trend_match_score": row.trend_match_score,
+        "virality_score": row.virality_score,
+        "payload": row.payload,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _linkedin_post_to_dict(row: LinkedInPostRecord | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "analysis_id": row.analysis_id,
+        "title": row.title,
+        "post_text": row.post_text,
+        "payload": row.payload,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _report_record_to_dict(row: ReportRecord | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "analysis_id": row.analysis_id,
+        "filename": row.filename,
+        "payload": row.payload,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def save_post_performance_record(
+    user_id: int,
+    post_url: str,
+    payload: dict,
+    platform: str,
+    region: str,
+    content_title: str,
+    likes: int,
+    comments: int,
+    shares: int,
+    reach: int,
+    impressions: int,
+    engagement_growth: float,
+    virality_momentum: float,
+    growth_speed: float,
+    trend_strength: float,
+    engagement_velocity: float,
+    trend_relevance: float,
+    lifecycle_stage: str,
+    should_repost: bool,
+    should_improve_hook: bool,
+    should_shorten_caption: bool,
+    should_follow_up: bool,
+    is_saturated: bool,
+    expected_reach: int,
+    expected_impressions: int,
+    peak_engagement_time: str,
+    engagement_decay: float,
+    live_metrics_available: bool,
+    recommendations: dict,
+    forecast: dict,
+    chart_data: dict,
+) -> dict:
+    session = get_db_session()
+    try:
+        row = (
+            session.query(PostPerformanceRecord)
+            .filter(
+                PostPerformanceRecord.user_id == user_id,
+                PostPerformanceRecord.post_url == post_url,
+            )
+            .first()
+        )
+        now = datetime.utcnow()
+        if row is None:
+            row = PostPerformanceRecord(
+                user_id=user_id,
+                post_url=post_url,
+                platform=platform,
+                region=region,
+                created_at=now,
+            )
+            session.add(row)
+
+        row.platform = platform
+        row.region = region
+        row.source_label = str(payload.get("source_label") or payload.get("platform_label") or platform.title())
+        row.content_title = content_title
+        row.likes = int(likes)
+        row.comments = int(comments)
+        row.shares = int(shares)
+        row.reach = int(reach)
+        row.impressions = int(impressions)
+        row.engagement_growth = float(engagement_growth)
+        row.virality_momentum = float(virality_momentum)
+        row.growth_speed = float(growth_speed)
+        row.trend_strength = float(trend_strength)
+        row.engagement_velocity = float(engagement_velocity)
+        row.trend_relevance = float(trend_relevance)
+        row.lifecycle_stage = lifecycle_stage
+        row.should_repost = bool(should_repost)
+        row.should_improve_hook = bool(should_improve_hook)
+        row.should_shorten_caption = bool(should_shorten_caption)
+        row.should_follow_up = bool(should_follow_up)
+        row.is_saturated = bool(is_saturated)
+        row.expected_reach = int(expected_reach)
+        row.expected_impressions = int(expected_impressions)
+        row.peak_engagement_time = peak_engagement_time
+        row.engagement_decay = float(engagement_decay)
+        row.live_metrics_available = bool(live_metrics_available)
+        row.payload = payload
+        row.recommendations = recommendations
+        row.forecast = forecast
+        row.chart_data = chart_data
+        row.updated_at = now
+        row.last_tracked_at = now
+        session.commit()
+        session.refresh(row)
+        return _post_performance_record_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_post_performance_records(user_id: int | None = None, limit: int = 10) -> list[dict]:
+    session = get_db_session()
+    try:
+        query = session.query(PostPerformanceRecord)
+        if user_id is not None:
+            query = query.filter(PostPerformanceRecord.user_id == user_id)
+        rows = query.order_by(PostPerformanceRecord.last_tracked_at.desc(), PostPerformanceRecord.id.desc()).limit(limit).all()
+        return [_post_performance_record_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_post_performance_by_url(post_url: str, user_id: int | None = None) -> dict | None:
+    session = get_db_session()
+    try:
+        query = session.query(PostPerformanceRecord).filter(PostPerformanceRecord.post_url == post_url)
+        if user_id is not None:
+            query = query.filter(PostPerformanceRecord.user_id == user_id)
+        row = query.order_by(PostPerformanceRecord.last_tracked_at.desc(), PostPerformanceRecord.id.desc()).first()
+        return _post_performance_record_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def get_latest_post_performance(user_id: int | None = None) -> dict | None:
+    records = get_post_performance_records(user_id=user_id, limit=1)
+    return records[0] if records else None
+
+
+def _post_performance_record_to_dict(row: PostPerformanceRecord | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "post_url": row.post_url,
+        "platform": row.platform,
+        "region": row.region,
+        "source_label": row.source_label,
+        "content_title": row.content_title,
+        "likes": row.likes,
+        "comments": row.comments,
+        "shares": row.shares,
+        "reach": row.reach,
+        "impressions": row.impressions,
+        "engagement_growth": row.engagement_growth,
+        "virality_momentum": row.virality_momentum,
+        "growth_speed": row.growth_speed,
+        "trend_strength": row.trend_strength,
+        "engagement_velocity": row.engagement_velocity,
+        "trend_relevance": row.trend_relevance,
+        "lifecycle_stage": row.lifecycle_stage,
+        "should_repost": bool(row.should_repost),
+        "should_improve_hook": bool(row.should_improve_hook),
+        "should_shorten_caption": bool(row.should_shorten_caption),
+        "should_follow_up": bool(row.should_follow_up),
+        "is_saturated": bool(row.is_saturated),
+        "expected_reach": row.expected_reach,
+        "expected_impressions": row.expected_impressions,
+        "peak_engagement_time": row.peak_engagement_time,
+        "engagement_decay": row.engagement_decay,
+        "live_metrics_available": bool(row.live_metrics_available),
+        "payload": row.payload,
+        "recommendations": row.recommendations,
+        "forecast": row.forecast,
+        "chart_data": row.chart_data,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "last_tracked_at": row.last_tracked_at.isoformat() if row.last_tracked_at else None,
     }

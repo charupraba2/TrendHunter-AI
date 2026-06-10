@@ -4,150 +4,709 @@
 <section class="dashboard-shell" id="dashboard-app" data-trends-api="/api/trends">
   <div class="dashboard-hero glass-panel">
     <div class="dashboard-hero__copy">
-      <p class="eyebrow">AI Command Center</p>
-      <h1>Unified trends workspace</h1>
+      <p class="eyebrow">TrendHunter AI - Creator Intelligence Platform</p>
+      <h1>Optimize posts before they go live</h1>
       <p class="lead dashboard-lead">
-        Explore Reddit, Google Trends, News, and YouTube with premium filters, live forecasting, and direct access to analysis, content ideas, and alerts.
+        Submit your own post idea, caption, or reel concept and get AI hooks, captions, hashtags, audience fit, virality prediction, and historical trend intelligence. Live trends remain the supporting signal layer.
       </p>
     </div>
 
     <div class="dashboard-actions">
       <button class="button secondary dashboard-button" id="fetch-reddit-btn" type="button">Fetch Reddit Trends</button>
       <button class="button secondary dashboard-button" id="fetch-google-btn" type="button">Fetch Google Trends</button>
-      <button class="button secondary dashboard-button" id="fetch-live-btn" type="button">Fetch Live Trends</button>
-      <button class="button secondary dashboard-button" id="analyze-trends-btn" type="button">Analyze Trends</button>
-      <button class="button secondary dashboard-button" id="rag-analyze-btn" type="button">RAG Analyze</button>
-      <button class="button secondary dashboard-button" id="forecast-trends-btn" type="button">AI Forecast</button>
-      <button class="button secondary dashboard-button" id="generate-content-btn" type="button">Generate Content Ideas</button>
-      <button class="button secondary dashboard-button" id="generate-alerts-btn" type="button">Generate Alerts</button>
+      <button class="button secondary dashboard-button" id="refresh-current-trends-btn" type="button">Refresh Current Trends</button>
       <button class="button primary button--glow dashboard-button" id="refresh-dashboard-btn" type="button">Refresh Dashboard</button>
     </div>
   </div>
 
-  <section class="live-panel glass-panel">
-    <div class="live-panel__top">
-      <div class="live-status">
-        <span class="live-status__badge">LIVE</span>
-        <span class="live-status__dot" id="live-status-dot"></span>
-        <span class="live-status__text" id="live-status-text">Connecting to live dashboard...</span>
-      </div>
-      <div class="live-meta">
-        <span>Online users: <strong id="live-online-count">0</strong></span>
-        <span>Last updated: <strong id="live-updated-at">Waiting...</strong></span>
-        <label class="live-sound-toggle">
-          <input id="sound-toggle" type="checkbox" />
-          <span>Sound alerts</span>
-        </label>
-      </div>
+  <div class="dashboard-commandbar glass-panel" aria-label="Dashboard quick actions">
+    <label class="dashboard-commandbar__search">
+      <span>Workspace search</span>
+      <input id="dashboard-workspace-search" type="search" placeholder="Search trends, posts, alerts, and recommendations" />
+    </label>
+    <div class="dashboard-commandbar__status">
+      <span class="dashboard-live-chip"><span class="dashboard-live-chip__dot"></span> LIVE INTELLIGENCE</span>
+      <p>Creator workflows, trend signals, and AI recommendations stay in sync.</p>
     </div>
-    <div class="live-ticker" id="live-ticker">
-      <span>Waiting for live updates...</span>
+    <div class="dashboard-commandbar__actions">
+      <button class="dashboard-icon-btn" type="button" id="dashboard-notifications-btn" aria-label="Notifications">
+        <span class="dashboard-icon-btn__glyph" aria-hidden="true"></span>
+      </button>
+      <button class="dashboard-profile-chip" type="button" id="dashboard-profile-btn" aria-label="Profile">
+        <span>TH</span>
+      </button>
     </div>
-    <div class="live-activity">
-      <div class="section-header live-activity__header">
-        <div>
-          <p class="eyebrow">Activity Feed</p>
-          <h2>Live dashboard events</h2>
+  </div>
+
+  <div class="dashboard-stage app-shell">
+    <aside class="dashboard-sidebar glass-panel">
+      <div class="dashboard-sidebar__brand">
+        <span class="dashboard-sidebar__label">TrendHunter AI</span>
+        <strong>Premium Intelligence Workspace</strong>
+      </div>
+      <nav class="dashboard-sidebar__nav" aria-label="Dashboard navigation">
+        <button class="dashboard-sidebar__item dashboard-tab is-active" type="button" data-dashboard-tab="overview" aria-selected="true">Dashboard</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="analyze" aria-selected="false">Analyze Post</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="trends" aria-selected="false">Intelligence Lab</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="strategy" aria-selected="false">Competitor Insights</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="performance" aria-selected="false">Forecast Studio</button>
+        <button class="dashboard-sidebar__item" type="button" id="sidebar-assistant-btn">AI Assistant</button>
+        <button class="dashboard-sidebar__item" type="button" id="sidebar-settings-btn">Settings</button>
+      </nav>
+      <div class="dashboard-sidebar__mini">
+        <span class="chip chip--live">Live</span>
+        <p>Matte black, emerald, and amber workspace built for fast decisions.</p>
+      </div>
+    </aside>
+
+    <div class="dashboard-center main-workspace">
+      <section class="dashboard-overview glass-panel" data-tab-panel="overview">
+        <div class="section-header dashboard-overview__header">
+          <div>
+            <p class="eyebrow">Dashboard</p>
+            <h2>Workflow overview</h2>
+          </div>
+          <p class="section-copy">A clean command center for your latest trends, forecasts, and recommendations.</p>
+        </div>
+        <div class="dashboard-summary">
+          <article class="summary-card">
+            <span>Total Trends</span>
+            <strong id="stat-total">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>High Viral</span>
+            <strong id="stat-high-viral">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>Active Alerts</span>
+            <strong id="stat-active-alerts">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>Exploding Forecasts</span>
+            <strong id="stat-exploding-forecasts">0</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard-intelbar glass-panel">
+        <div class="dashboard-intelbar__card dashboard-intelbar__card--live">
+          <div class="section-header section-header--compact">
+            <div>
+              <p class="eyebrow">Live Status</p>
+              <h3>Realtime signal feed</h3>
+            </div>
+          </div>
+          <div class="live-status" id="live-status-block">
+            <span id="live-status-dot" class="status-dot status-dot--live"></span>
+            <span id="live-status-text">Connecting...</span>
+          </div>
+          <div class="live-meta">
+            <span>Online users: <strong id="live-online-count">0</strong></span>
+            <span>Updated: <strong id="live-updated-at">--</strong></span>
+          </div>
+          <div class="live-ticker" id="live-ticker" aria-live="polite"></div>
+        </div>
+
+        <div class="dashboard-intelbar__card">
+          <div class="section-header section-header--compact">
+            <div>
+              <p class="eyebrow">AI Insight</p>
+              <h3>Top recommendation</h3>
+            </div>
+          </div>
+          <div class="intel-stack">
+            <div class="intel-card">
+              <span>Latest RAG insight</span>
+              <strong id="intel-rag-title">No creator analysis yet</strong>
+              <p id="intel-rag-text">Run creator analysis or RAG to ground the next move in historical context.</p>
+            </div>
+            <div class="intel-card">
+              <span>Latest forecast</span>
+              <strong id="intel-forecast-title">No forecast yet</strong>
+              <p id="intel-forecast-text">Generate a forecast or creator analysis to see the strongest recommendation.</p>
+            </div>
+            <div class="intel-card">
+              <span>Top source today</span>
+              <strong id="intel-source-title">Not available</strong>
+              <p id="intel-source-text">Fetch or refresh live trends to identify the most active source.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-intelbar__card">
+          <div class="section-header section-header--compact">
+            <div>
+              <p class="eyebrow">Live Alerts</p>
+              <h3>Unread alerts</h3>
+            </div>
+          </div>
+          <div class="alerts-rail">
+            <div class="empty-state empty-state--compact" id="alerts-empty">
+              <h3>No alerts yet</h3>
+              <p>Generate alerts to surface high-viral trends here.</p>
+            </div>
+            <div id="alerts-list" class="alerts-list"></div>
+          </div>
+          <button class="button primary button--glow rail-action" type="button" id="openAssistantSidebarBtn">Open AI Assistant</button>
+        </div>
+      </section>
+
+  <section class="creator-lab glass-panel" id="creator-lab" data-tab-panel="analyze">
+    <div class="section-header creator-lab__header">
+      <div>
+        <p class="eyebrow">Creator Intelligence Lab</p>
+        <h2>AI post optimization workflow</h2>
+      </div>
+      <p class="section-copy">Analyze a draft post, compare it against historical winners, and generate better hooks, captions, CTAs, hashtags, and posting guidance.</p>
+    </div>
+
+    <div class="creator-lab__layout">
+      <form class="creator-form glass-panel" id="creator-form">
+        <div class="creator-form__grid">
+          <label class="control-group">
+            <span>Platform</span>
+            <select id="creator-platform" required>
+              <option value="instagram">Instagram</option>
+              <option value="youtube">YouTube</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="twitter">Twitter/X</option>
+              <option value="reddit">Reddit</option>
+              <option value="tiktok">TikTok</option>
+              <option value="facebook">Facebook</option>
+            </select>
+          </label>
+          <label class="control-group">
+            <span>Content Type</span>
+            <select id="creator-content-type">
+              <option value="Reel">Reel</option>
+              <option value="Short-form video">Short-form video</option>
+              <option value="Carousel">Carousel</option>
+              <option value="Post">Post</option>
+              <option value="Thread">Thread</option>
+              <option value="Shorts">Shorts</option>
+              <option value="Article">Article</option>
+            </select>
+          </label>
+          <label class="control-group">
+            <span>Target Audience</span>
+            <select id="creator-audience">
+              <option value="Creators">Creators</option>
+              <option value="Marketers">Marketers</option>
+              <option value="Founders">Founders</option>
+              <option value="Students">Students</option>
+              <option value="Tech enthusiasts">Tech enthusiasts</option>
+              <option value="General audience">General audience</option>
+            </select>
+          </label>
+          <label class="control-group creator-form__wide">
+            <span>Post Title / Idea</span>
+            <input id="creator-title" type="text" placeholder="Example: 5 AI content ideas creators should post this week" required />
+          </label>
+          <label class="control-group creator-form__wide">
+            <span>Caption</span>
+            <textarea id="creator-caption" rows="5" placeholder="Paste your caption, talking points, or content outline here."></textarea>
+          </label>
+          <label class="control-group creator-form__wide">
+            <span>Hashtags</span>
+            <input id="creator-hashtags" type="text" placeholder="#creator #ai #contentstrategy" />
+          </label>
+          <label class="control-group creator-form__wide">
+            <span>Upload Thumbnail/Image</span>
+            <input id="thumbnail-upload" type="file" accept="image/*" />
+          </label>
+          <div class="creator-form__wide thumbnail-upload">
+            <div class="thumbnail-upload__preview">
+              <img id="thumbnail-preview-image" alt="Thumbnail preview" hidden />
+              <div class="thumbnail-upload__placeholder" id="thumbnail-upload-placeholder">
+                <strong>No thumbnail selected</strong>
+                <p>Choose an image to preview it and run the thumbnail quality check.</p>
+              </div>
+            </div>
+            <div class="thumbnail-upload__meta">
+              <p class="thumbnail-upload__status" id="thumbnail-upload-status">Upload an image to analyze its brightness, contrast, resolution, and file size.</p>
+            </div>
+          </div>
+        </div>
+        <div class="creator-form__actions">
+          <button class="button primary button--glow" id="creator-analyze-btn" type="submit">Analyze Content</button>
+          <button class="button secondary" id="clearAnalysisBtn" type="button" disabled>Clear Analysis</button>
+          <button class="button secondary" id="post-linkedin-btn" type="button" disabled>Copy & Open LinkedIn</button>
+          <button class="button secondary" id="export-pdf-btn" type="button" disabled>Export PDF Report</button>
+        </div>
+      </form>
+
+      <div class="creator-results glass-panel" id="analysisResult">
+        <div class="empty-state creator-results__empty" id="analysisEmpty">
+          <h3>No creator analysis yet</h3>
+          <p>Submit a post idea and the platform will optimize the hook, caption, CTA, hashtags, audience fit, forecast, and historical comparison.</p>
+        </div>
+        <div class="creator-results__content" id="analysisContent" hidden></div>
+        <div class="thumbnail-analysis glass-panel" id="thumbnail-analysis" hidden>
+          <div class="creator-results__header">
+            <div>
+              <p class="eyebrow">Thumbnail Analysis</p>
+              <h3>Image quality result</h3>
+            </div>
+          </div>
+          <div class="thumbnail-analysis__content" id="thumbnail-analysis-content"></div>
         </div>
       </div>
-      <div class="live-activity__list" id="live-activity-feed"></div>
     </div>
   </section>
 
-  <section class="alerts-panel glass-panel">
-    <div class="section-header alerts-panel__header">
+  <section class="performance-lab glass-panel" id="performance-lab" data-tab-panel="performance">
+    <div class="section-header performance-lab__header">
       <div>
-        <p class="eyebrow">Alerts</p>
-        <h2>High viral trend alerts</h2>
+        <p class="eyebrow">Forecast Studio</p>
+        <h2 id="forecastStudioTitle">Regional engagement forecast workspace</h2>
       </div>
-      <p class="section-copy">Monitor breakout opportunities and mark them as read when you've acted on them.</p>
+      <p class="section-copy" id="forecastStudioSubtitle">Choose a mode to compare global and region-specific engagement forecasts, probability signals, and creator recommendations.</p>
     </div>
-    <div class="alerts-list" id="alerts-list"></div>
-    <div class="empty-state alerts-empty" id="alerts-empty">
-      <h3>No alerts yet</h3>
-      <p>Run analysis and generate alerts to surface breakout opportunities before they cool off.</p>
+
+    <div class="forecast-modebar glass-panel">
+      <label class="control-group forecast-modebar__control" for="forecast-mode">
+        <span>Mode</span>
+        <select id="forecast-mode">
+          <option value="Global">Global</option>
+          <option value="India" selected>India</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Coimbatore">Coimbatore</option>
+          <option value="Chennai">Chennai</option>
+          <option value="Madurai">Madurai</option>
+        </select>
+      </label>
+      <div class="forecast-modebar__meta">
+        <span class="trend-badge trend-badge--mode" id="forecast-mode-badge">India forecast mode</span>
+        <p class="forecast-modebar__copy">Mode updates the forecast title, chart labels, and regional weighting.</p>
+      </div>
+    </div>
+
+    <div class="performance-lab__layout">
+      <form class="performance-form glass-panel" id="postTrackingForm">
+        <label class="control-group performance-form__wide">
+          <span>Published Post URL</span>
+          <input id="publishedPostUrl" type="url" placeholder="Paste a LinkedIn, Instagram, YouTube, or Twitter/X post URL" required />
+        </label>
+        <div class="performance-form__metrics-grid">
+          <label class="control-group">
+            <span>Likes</span>
+            <input id="manualLikes" type="number" min="0" step="1" placeholder="69" required />
+          </label>
+          <label class="control-group">
+            <span>Comments</span>
+            <input id="manualComments" type="number" min="0" step="1" placeholder="12" required />
+          </label>
+          <label class="control-group">
+            <span>Shares</span>
+            <input id="manualShares" type="number" min="0" step="1" placeholder="7" required />
+          </label>
+          <label class="control-group">
+            <span>Impressions (optional)</span>
+            <input id="manualImpressions" type="number" min="0" step="1" placeholder="1250" />
+          </label>
+        </div>
+        <label class="control-group performance-form__wide">
+          <span>Time Since Posted</span>
+          <select id="postAge">
+            <option value="30 mins">30 mins</option>
+            <option value="1 hour">1 hour</option>
+            <option value="2 hours" selected>2 hours</option>
+            <option value="6 hours">6 hours</option>
+            <option value="24 hours">24 hours</option>
+          </select>
+        </label>
+        <div class="performance-form__meta">
+          <span class="trend-badge performance-platform-badge" id="performance-platform-badge">Platform auto-detected</span>
+          <span class="trend-badge performance-region-badge" id="performance-region-badge">Region: India</span>
+        </div>
+        <p class="performance-form__hint">Use the dashboard region selector as the regional context. The platform is inferred from the URL when possible.</p>
+        <div class="creator-form__actions">
+          <button class="button primary button--glow" id="trackPostBtn" type="button" onclick="trackPublishedPost()">Track Performance</button>
+        </div>
+      </form>
+
+      <div class="performance-results glass-panel" id="performance-results">
+        <div class="empty-state performance-results__empty" id="performance-empty">
+          <h3>No post performance tracked yet</h3>
+          <p>Paste a published post URL to see engagement growth, lifecycle stage, virality momentum, and AI recommendations for your next move.</p>
+        </div>
+        <div class="performance-results__content" id="performance-results-content" hidden>
+          <div class="performance-results__summary">
+            <div>
+              <p class="eyebrow">Tracked Post</p>
+              <h3 id="performance-summary-title">Published post</h3>
+              <p id="performance-summary-text">Track a published post to see live momentum analysis.</p>
+            </div>
+            <div class="performance-results__badges">
+              <span class="trend-badge" id="performanceLifecycleStage">Stable</span>
+              <span class="trend-badge" id="performanceMomentumBadge">Momentum 0%</span>
+              <span class="trend-badge" id="performanceTrendRelevanceBadge">Relevance 0%</span>
+            </div>
+          </div>
+
+          <div class="performance-metrics-grid">
+            <article class="performance-metric-card"><span>Likes</span><strong id="performanceLikes">0</strong></article>
+            <article class="performance-metric-card"><span>Comments</span><strong id="performanceComments">0</strong></article>
+            <article class="performance-metric-card"><span>Shares</span><strong id="performanceShares">0</strong></article>
+            <article class="performance-metric-card"><span>Reach</span><strong id="performanceReach">0</strong></article>
+            <article class="performance-metric-card"><span>Impressions</span><strong id="performanceImpressions">0</strong></article>
+            <article class="performance-metric-card"><span>Engagement Growth</span><strong id="performanceEngagementGrowth">0%</strong></article>
+          </div>
+
+          <div class="performance-indicators-grid">
+            <article class="performance-indicator-card">
+              <span>Virality Momentum</span>
+              <strong id="performanceViralityMomentum">0%</strong>
+              <div class="performance-meter"><div class="performance-meter__fill" id="performanceViralityMomentumBar"></div></div>
+            </article>
+            <article class="performance-indicator-card">
+              <span>Growth Speed</span>
+              <strong id="performanceGrowthSpeed">0%</strong>
+              <div class="performance-meter"><div class="performance-meter__fill" id="performanceGrowthSpeedBar"></div></div>
+            </article>
+            <article class="performance-indicator-card">
+              <span>Trend Strength</span>
+              <strong id="performanceTrendStrength">0%</strong>
+              <div class="performance-meter"><div class="performance-meter__fill" id="performanceTrendStrengthBar"></div></div>
+            </article>
+            <article class="performance-indicator-card">
+              <span>Engagement Velocity</span>
+              <strong id="performanceEngagementVelocity">0%</strong>
+              <div class="performance-meter"><div class="performance-meter__fill" id="performanceEngagementVelocityBar"></div></div>
+            </article>
+          </div>
+
+          <div class="performance-forecast-grid">
+            <article class="performance-forecast-card">
+              <span>Expected Reach</span>
+              <strong id="performanceExpectedReach">0</strong>
+            </article>
+            <article class="performance-forecast-card">
+              <span>Expected Impressions</span>
+              <strong id="performanceExpectedImpressions">0</strong>
+            </article>
+            <article class="performance-forecast-card">
+              <span>Peak Engagement Time</span>
+              <strong id="performancePeakTime">--</strong>
+            </article>
+            <article class="performance-forecast-card">
+              <span>Engagement Decay</span>
+              <strong id="performanceDecay">0%</strong>
+            </article>
+          </div>
+
+          <div class="performance-charts-grid">
+            <article class="chart-card viral-chart-card glass-panel">
+              <div class="viral-chart-card__header">
+                <div>
+                  <span class="summary-label">Engagement Forecast</span>
+                  <h3 id="forecastEngagementTitle">Likes, comments, shares, and reach over time</h3>
+                </div>
+              </div>
+              <div class="chart-container viral-chart-card__canvas-wrap">
+                <canvas id="postPerformanceGrowthChart" aria-label="Post performance growth chart" role="img"></canvas>
+              </div>
+            </article>
+            <article class="chart-card viral-chart-card glass-panel">
+              <div class="viral-chart-card__header">
+                <div>
+                  <span class="summary-label">Viral Probability</span>
+                  <h3 id="forecastProbabilityTitle">Lifecycle momentum and decay risk</h3>
+                </div>
+              </div>
+              <div class="chart-container viral-chart-card__canvas-wrap">
+                <canvas id="postPerformanceLifecycleChart" aria-label="Post lifecycle chart" role="img"></canvas>
+              </div>
+            </article>
+          </div>
+
+          <div class="performance-recommendations chart-card">
+            <div class="viral-chart-card__header">
+              <div>
+                <span class="summary-label">Recommendation Card</span>
+                <h3>What to do next</h3>
+              </div>
+            </div>
+            <div class="performance-recommendations__grid" id="performanceRecommendations"></div>
+          </div>
+        </div>
+        <div id="postPerformanceResult" class="performance-result-output" aria-live="polite"></div>
+      </div>
     </div>
   </section>
 
-  <div class="dashboard-summary">
-    <div class="stat-card glass-panel">
-      <span class="summary-label">Total Trends</span>
-      <strong id="stat-total">0</strong>
-      <p>Matching current filters</p>
-    </div>
-    <div class="stat-card glass-panel">
-      <span class="summary-label">High Viral Trends</span>
-      <strong id="stat-high-viral">0</strong>
-      <p>Score 75 or higher</p>
-    </div>
-    <div class="stat-card glass-panel">
-      <span class="summary-label">Active Alerts</span>
-      <strong id="stat-active-alerts">0</strong>
-      <p>Unread high-viral alerts</p>
-    </div>
-    <div class="stat-card glass-panel">
-      <span class="summary-label">Forecasted Exploding Trends</span>
-      <strong id="stat-exploding-forecasts">0</strong>
-      <p>Prediction label EXPLODING</p>
-    </div>
-  </div>
-
-  <section class="intelligence-panel glass-panel">
-    <div class="section-header intelligence-panel__header">
+  <section class="strategy-panel glass-panel" id="strategy-panel" data-tab-panel="strategy">
+    <div class="section-header strategy-panel__header">
       <div>
-        <p class="eyebrow">AI Intelligence Panel</p>
-        <h2>Most important live signals</h2>
+        <p class="eyebrow">AI Strategy Panel</p>
+        <h2>Creator Strategy AI Agent</h2>
       </div>
-      <p class="section-copy">Track the latest RAG insight, forecast recommendation, top source, and live system status in one place.</p>
+      <p class="section-copy">Turn the latest analysis, trends, and competitor signals into short next-step recommendations.</p>
     </div>
-    <div class="intelligence-grid">
-      <article class="intelligence-card">
-        <span>Latest RAG Insight</span>
-        <strong id="intel-rag-title">No RAG insight yet</strong>
-        <p id="intel-rag-text">Run RAG analysis to ground the next move in historical context.</p>
-      </article>
-      <article class="intelligence-card">
-        <span>Latest Forecast Recommendation</span>
-        <strong id="intel-forecast-title">No forecast yet</strong>
-        <p id="intel-forecast-text">Generate a forecast to see the strongest recommendation.</p>
-      </article>
-      <article class="intelligence-card">
-        <span>Top Source Today</span>
-        <strong id="intel-source-title">Not available</strong>
-        <p id="intel-source-text">Fetch or refresh live trends to identify the most active source.</p>
-      </article>
-      <article class="intelligence-card">
-        <span>Current Live Status</span>
-        <strong id="intel-live-title">Connecting</strong>
-        <p id="intel-live-text">Waiting for the websocket dashboard connection to stabilize.</p>
-      </article>
+    <div class="strategy-panel__toolbar">
+      <button class="button primary button--glow" id="strategyBtn" type="button">Generate Strategy</button>
+      <span class="strategy-panel__status" id="strategyStatus">Run content analysis first to unlock the strategy agent.</span>
+    </div>
+    <div class="strategy-panel__content" id="strategyResult">
+      <div class="empty-state strategy-panel__empty" id="strategyEmpty">
+        <h3>No strategy yet</h3>
+        <p>Analyze content to generate a short, actionable posting strategy with next steps, timing, tone, hashtags, and audience insights.</p>
+      </div>
+      <div class="strategy-panel__loading" id="strategyLoader" hidden>
+        <span class="strategy-panel__spinner" aria-hidden="true"></span>
+        <p>Generating creator strategy...</p>
+      </div>
+      <div class="strategy-panel__body" id="strategyContent" hidden></div>
     </div>
   </section>
 
-  <div class="forecast-summary">
-    <div class="stat-card glass-panel forecast-widget">
-      <span class="summary-label">Likely to Go Viral</span>
-      <strong id="forecast-likely">0</strong>
-      <p>Exploding or growing trends</p>
+  <section class="platform-intelligence glass-panel" id="platform-intelligence" data-tab-panel="strategy">
+    <div class="section-header platform-intelligence__header">
+      <div>
+        <p class="eyebrow">Platform Intelligence</p>
+        <h2>Algorithm behavior across LinkedIn, YouTube, Instagram, and Twitter/X</h2>
+      </div>
+      <p class="section-copy">See how the same content would score on different platforms, with platform-specific recommendations and forecast focus.</p>
     </div>
-    <div class="stat-card glass-panel forecast-widget">
-      <span class="summary-label">High Opportunity</span>
-      <strong id="forecast-opportunity">0</strong>
-      <p>Opportunity score 75+</p>
+    <div class="platform-intelligence__grid">
+      <article class="viral-chart-card glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Radar Chart</span>
+            <h3>Platform algorithm fit</h3>
+          </div>
+        </div>
+        <div class="viral-chart-card__canvas-wrap">
+          <canvas id="platformAlgorithmRadarChart" aria-label="Platform algorithm radar chart" role="img"></canvas>
+        </div>
+      </article>
+      <article class="viral-chart-card glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Platform Comparison</span>
+            <h3>How this post performs elsewhere</h3>
+          </div>
+        </div>
+        <div class="viral-chart-card__canvas-wrap">
+          <canvas id="platformComparisonChart" aria-label="Platform comparison chart" role="img"></canvas>
+        </div>
+      </article>
+      <article class="platform-intelligence__cards glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Score Cards</span>
+            <h3>Algorithm signal breakdown</h3>
+          </div>
+        </div>
+        <div id="platformAlgorithmCards" class="platform-intelligence__score-grid"></div>
+      </article>
     </div>
-    <div class="stat-card glass-panel forecast-widget">
-      <span class="summary-label">Risky Trend</span>
-      <strong id="forecast-risky">0</strong>
-      <p>High risk or saturation signals</p>
+    <div class="platform-intelligence__footer">
+      <div class="platform-intelligence__recommendations glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">AI Recommendations</span>
+            <h3>Platform-aware next steps</h3>
+          </div>
+        </div>
+        <div id="platformAlgorithmRecommendations" class="platform-intelligence__recommendation-list"></div>
+      </div>
+      <div class="platform-intelligence__comparison glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Platform Comparison Mode</span>
+            <h3>Ranked by fit</h3>
+          </div>
+        </div>
+        <div id="platformComparisonMode" class="platform-intelligence__comparison-list"></div>
+      </div>
     </div>
-    <div class="stat-card glass-panel forecast-widget">
-      <span class="summary-label">Trending Downward</span>
-      <strong id="forecast-downward">0</strong>
-      <p>Declining or saturated trends</p>
-    </div>
-  </div>
+  </section>
 
-  <div class="dashboard-toolbar glass-panel">
+  <section class="viral-analytics glass-panel" data-tab-panel="analyze">
+    <div class="section-header viral-analytics__header">
+      <div>
+        <p class="eyebrow">Viral Score Breakdown</p>
+        <h2>Visual analytics for your latest analysis</h2>
+      </div>
+      <p class="section-copy">Radar, benchmark, and comparison graphs update right after you analyze content.</p>
+    </div>
+    <div class="viral-analytics__grid">
+      <article class="viral-chart-card glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Radar Chart</span>
+            <h3>Virality dimensions</h3>
+          </div>
+        </div>
+        <div class="viral-chart-card__canvas-wrap">
+          <canvas id="viralityRadarChart" aria-label="Virality radar chart" role="img"></canvas>
+        </div>
+      </article>
+      <article class="viral-chart-card glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Bar Chart</span>
+            <h3>Current score vs benchmark</h3>
+          </div>
+        </div>
+        <div class="viral-chart-card__canvas-wrap">
+          <canvas id="viralityBarChart" aria-label="Virality benchmark bar chart" role="img"></canvas>
+        </div>
+      </article>
+      <article class="viral-chart-card glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Trend Comparison</span>
+            <h3>Current vs high viral content</h3>
+          </div>
+        </div>
+        <div class="viral-chart-card__canvas-wrap">
+          <canvas id="viralityComparisonChart" aria-label="Virality comparison chart" role="img"></canvas>
+        </div>
+      </article>
+      <article class="viral-chart-card glass-panel">
+        <div class="viral-chart-card__header">
+          <div>
+            <span class="summary-label">Forecast Analytics</span>
+            <h3>24-hour engagement prediction</h3>
+          </div>
+        </div>
+        <div class="forecast-analytics__cards" id="forecastAnalyticsCards">
+          <div class="forecast-metric-card">
+            <span>Estimated Likes</span>
+            <strong id="forecastLikes">0</strong>
+          </div>
+          <div class="forecast-metric-card">
+            <span>Estimated Comments</span>
+            <strong id="forecastComments">0</strong>
+          </div>
+          <div class="forecast-metric-card">
+            <span>Estimated Shares</span>
+            <strong id="forecastShares">0</strong>
+          </div>
+          <div class="forecast-metric-card">
+            <span>Estimated Reach</span>
+            <strong id="forecastReach">0</strong>
+          </div>
+        </div>
+        <div class="forecast-analytics__meta">
+          <div class="forecast-meta-pill">
+            <span>Growth Trend</span>
+            <strong id="forecastGrowthTrend">Stable</strong>
+          </div>
+          <div class="forecast-meta-pill">
+            <span>Prediction Confidence</span>
+            <strong id="forecastConfidence">0%</strong>
+          </div>
+          <div class="forecast-meta-pill">
+            <span>Expected Peak</span>
+            <strong id="forecastPeakTime">--</strong>
+          </div>
+        </div>
+        <div class="viral-chart-card__canvas-wrap forecast-chart-wrap">
+          <canvas id="engagementForecastChart" aria-label="Engagement forecast line chart" role="img"></canvas>
+        </div>
+      </article>
+    </div>
+    <article class="viral-chart-card glass-panel viral-chart-card--wide">
+      <div class="viral-chart-card__header">
+        <div>
+          <span class="summary-label">Engagement Growth Prediction</span>
+          <h3>24-hour growth outlook</h3>
+        </div>
+      </div>
+      <div class="viral-chart-card__canvas-wrap viral-chart-card__canvas-wrap--wide">
+        <canvas id="engagementGrowthPredictionChart" aria-label="Engagement growth prediction line chart" role="img"></canvas>
+      </div>
+    </article>
+  </section>
+
+  <section class="trend-snapshot glass-panel" data-tab-panel="analyze">
+    <div class="section-header trend-snapshot__header">
+      <div>
+        <p class="eyebrow">Current Trend Snapshot</p>
+        <h2>Free-source trend keywords and match scoring</h2>
+      </div>
+      <p class="section-copy">Pulls live RSS data from Reddit, Google Trends, and news feeds, then compares it against your draft content.</p>
+    </div>
+    <div class="trend-snapshot__controls">
+      <label class="control-group trend-snapshot__control">
+        <span>Trend Mode</span>
+        <select id="trendRegion">
+          <option value="Global">Global</option>
+          <option value="India" selected>India</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Chennai">Chennai</option>
+          <option value="Trichy">Trichy</option>
+        </select>
+      </label>
+      <p class="trend-snapshot__summary" id="trendRegionSummary">Region: India</p>
+    </div>
+    <div class="trend-snapshot__meta">
+      <div class="trend-snapshot__score">
+        <span>Trend match score</span>
+        <strong id="trend-match-score">0%</strong>
+        <p id="trend-match-note">Run content analysis to compare your post with current trends.</p>
+      </div>
+      <div class="trend-snapshot__keywords">
+        <div class="trend-snapshot__keywords-header">
+          <span>Trending keywords</span>
+          <button class="button secondary" id="current-trends-refresh-btn" type="button">Refresh</button>
+        </div>
+        <div class="trend-tags" id="current-trends-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="competitor-lab glass-panel" data-tab-panel="strategy">
+    <div class="section-header competitor-lab__header">
+      <div>
+        <p class="eyebrow">Competitor Analysis</p>
+        <h2>Study competitor hooks, content style, and posting patterns</h2>
+      </div>
+      <p class="section-copy">Enter a competitor name, channel, or topic and the backend will pull sample titles from free sources or use a mock fallback.</p>
+    </div>
+
+    <div class="competitor-lab__layout">
+      <form class="competitor-form glass-panel" id="competitor-form">
+        <div class="creator-form__grid">
+          <label class="control-group creator-form__wide">
+            <span>Competitor name or channel</span>
+            <input id="competitorName" type="text" placeholder="Example: HubSpot, MrBeast, or AI content strategy" required />
+          </label>
+          <label class="control-group">
+            <span>Platform</span>
+            <select id="competitor-platform">
+              <option value="linkedin">LinkedIn</option>
+              <option value="youtube">YouTube</option>
+              <option value="instagram">Instagram</option>
+              <option value="tiktok">TikTok</option>
+              <option value="twitter">Twitter/X</option>
+              <option value="reddit">Reddit</option>
+            </select>
+          </label>
+          <label class="control-group creator-form__wide">
+            <span>Optional topic / niche</span>
+            <input id="competitor-topic" type="text" placeholder="Example: LinkedIn growth or short-form education" />
+          </label>
+        </div>
+      <div class="creator-form__actions">
+        <button class="button primary button--glow" id="competitorBtn" type="submit">Analyze Competitor</button>
+      </div>
+    </form>
+
+      <div class="competitor-results glass-panel" id="competitorResult">
+        <div class="empty-state" id="competitor-results-empty">
+          <h3>No competitor analysis yet</h3>
+          <p>Run a competitor scan to surface common hook words, content style, posting cadence, keyword themes, and strategy recommendations.</p>
+        </div>
+        <div class="competitor-results__content" id="competitor-results-content" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="dashboard-toolbar glass-panel" data-tab-panel="trends">
     <div class="toolbar-grid">
       <label class="control-group">
         <span>Search</span>
@@ -168,8 +727,9 @@
         <select id="virality-filter">
           <option value="all">All</option>
           <option value="High Viral">High Viral</option>
-          <option value="Medium Viral">Medium Viral</option>
-          <option value="Low Viral">Low Viral</option>
+          <option value="Trending">Trending</option>
+          <option value="Average">Average</option>
+          <option value="Low Reach">Low Reach</option>
         </select>
       </label>
       <label class="control-group">
@@ -193,7 +753,7 @@
     </div>
   </div>
 
-  <div class="dashboard-status" id="dashboard-status" aria-live="polite">
+  <div class="dashboard-status" id="dashboard-status" aria-live="polite" data-tab-panel="trends">
     <span class="dashboard-status__text">Loading stored trends...</span>
     <span class="dashboard-status__loader" id="dashboard-loader" aria-hidden="true">
       <span></span>
@@ -202,11 +762,11 @@
     </span>
   </div>
 
-  <section class="trend-board">
-    <div class="trend-board__header">
-      <div>
-        <p class="eyebrow">Latest stored trends</p>
-        <h2>Reddit and Google Trends together</h2>
+      <section class="trend-board" data-tab-panel="trends">
+        <div class="trend-board__header">
+          <div>
+            <p class="eyebrow">Latest stored trends</p>
+            <h2>Reddit and Google Trends together</h2>
       </div>
     </div>
 
@@ -215,13 +775,38 @@
       <div class="trend-skeleton"></div>
       <div class="trend-skeleton"></div>
     </div>
-    <div class="trend-grid" id="trend-grid"></div>
-    <div class="empty-state glass-panel" id="dashboard-empty">
-      <h3>No trends loaded yet</h3>
-      <p>Use the live fetch buttons to populate the workspace with real trend data.</p>
+        <div class="trend-grid" id="trend-grid"></div>
+        <div class="empty-state glass-panel" id="dashboard-empty">
+          <h3>No trends loaded yet</h3>
+          <p>Use the live fetch buttons to populate the workspace with real trend data.</p>
+        </div>
+      </section>
     </div>
-  </section>
+  </div>
 </section>
+
+<div id="aiAssistantBtn" class="ai-assistant-btn" aria-label="Open AI assistant" role="button" tabindex="0">
+  🤖
+</div>
+
+<div id="aiAssistantPanel" class="ai-assistant-panel hidden" aria-hidden="true">
+  <div class="ai-header">
+    <h3>TrendHunter AI Assistant</h3>
+    <button id="closeAssistantBtn" type="button" aria-label="Close AI assistant">✕</button>
+  </div>
+
+  <div id="aiChatMessages" class="ai-chat-messages"></div>
+
+  <div class="ai-chat-input-row">
+    <input
+      id="aiChatInput"
+      type="text"
+      placeholder="Ask about your content..."
+      autocomplete="off"
+    />
+    <button id="aiChatSendBtn" type="button">Send</button>
+  </div>
+</div>
 
 <div class="content-modal" id="content-modal" aria-hidden="true">
   <div class="content-modal__backdrop" data-close-modal></div>
@@ -270,6 +855,16 @@
     <p class="eyebrow">AI Forecast</p>
     <h3 id="forecast-modal-title">Trend Forecast</h3>
     <div class="forecast-modal__body" id="forecast-modal-body"></div>
+  </div>
+</div>
+
+<div class="content-modal" id="linkedin-modal" aria-hidden="true">
+  <div class="content-modal__backdrop" data-close-linkedin-modal></div>
+  <div class="content-modal__panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="linkedin-modal-title">
+    <button class="modal-close" type="button" data-close-linkedin-modal aria-label="Close LinkedIn post">x</button>
+    <p class="eyebrow">LinkedIn Post</p>
+    <h3 id="linkedin-modal-title">Generated LinkedIn Post</h3>
+    <div class="content-modal__body" id="linkedin-modal-body"></div>
   </div>
 </div>
 

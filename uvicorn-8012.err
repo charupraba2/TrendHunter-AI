@@ -1,0 +1,19 @@
+D:\TrendHunter AI\backend\services\gemini_service.py:21: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+INFO:     Started server process [22172]
+INFO:     Waiting for application startup.
+2026-06-05 21:09:06,484 | INFO | backend.main | All optional API keys are configured.
+2026-06-05 21:09:06,484 | INFO | backend.websocket_manager | WebSocket event loop registered.
+2026-06-05 21:09:06,499 | INFO | backend.main | Registered routes: /api/alerts, /api/alerts/{alert_id}/read, /api/analyze-competitor, /api/analyze-creator-content, /api/analyze-post, /api/analyze-thumbnail, /api/analyze-trend, /api/analyze-trends, /api/competitor-analysis, /api/current-trends, /api/export-pdf, /api/export-pdf-report, /api/fetch-google-trends, /api/fetch-live-trends, /api/fetch-news-trends, /api/fetch-reddit-trends, /api/fetch-youtube-trends, /api/forecast-live-trends, /api/forecast-trend, /api/generate-alerts, /api/generate-content-ideas, /api/generate-linkedin-post, /api/rag-analyze-trend, /api/trend/{trend_id}/content-idea, /api/trends, /api/trends/{trend_id}, /api/workspace, /ws/dashboard
+2026-06-05 21:09:06,499 | INFO | backend.main | TrendHunter AI started in development mode.
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8012): only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

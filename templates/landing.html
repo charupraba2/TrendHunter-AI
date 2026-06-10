@@ -12,7 +12,10 @@
 
     <div class="actions">
       <a class="button primary button--glow" href="/dashboard">Start Predicting Trends</a>
-      <a class="button secondary" href="/api/trends">Explore Live Data</a>
+      {% if not request.state.current_user %}
+      <a class="button secondary" href="/login">Login</a>
+      {% endif %}
+      <a class="button secondary" href="/dashboard">Explore Live Data</a>
     </div>
 
     <div class="hero-stats">

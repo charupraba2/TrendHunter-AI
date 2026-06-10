@@ -25,10 +25,10 @@ class ForecastService:
         self._model = None
         self._model_ready = False
 
-    def retrieve_similar_trends(self, title: str, description: str = "", limit: int = 5) -> list[dict[str, Any]]:
+    def retrieve_similar_trends(self, title: str, description: str = "", limit: int = 5, region: str | None = None) -> list[dict[str, Any]]:
         title_norm = self._normalize_text(title)
         description_norm = self._normalize_text(description)
-        historical_trends = get_all_trends(limit=500)
+        historical_trends = get_all_trends(limit=500, region=region)
         alert_trend_ids = {alert["trend_id"] for alert in get_alerts(500)}
 
         scored: list[dict[str, Any]] = []
@@ -75,7 +75,7 @@ class ForecastService:
             )
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
-    def forecast_trend_growth(self, title: str, description: str = "", trend: dict[str, Any] | None = None) -> dict[str, Any]:
+    def forecast_trend_growth(self, title: str, description: str = "", trend: dict[str, Any] | None = None, region: str | None = None) -> dict[str, Any]:
         title = (title or "").strip()
         description = (description or "").strip()
         if not title:
@@ -84,7 +84,7 @@ class ForecastService:
         self._ensure_model()
 
         current_trend = dict(trend or self._find_best_trend(title, description) or {})
-        similar_trends = self.retrieve_similar_trends(title, description)
+        similar_trends = self.retrieve_similar_trends(title, description, region=region)
         context = self.build_forecast_context(similar_trends)
 
         heuristic = self._heuristic_forecast(title, description, current_trend, similar_trends)
@@ -104,8 +104,8 @@ class ForecastService:
             "forecast": forecast,
         }
 
-    def forecast_live_trends(self, trends: list[dict[str, Any]] | None = None, limit: int = 100) -> list[dict[str, Any]]:
-        trend_list = trends or get_all_trends(limit=limit)
+    def forecast_live_trends(self, trends: list[dict[str, Any]] | None = None, limit: int = 100, region: str | None = None) -> list[dict[str, Any]]:
+        trend_list = trends or get_all_trends(limit=limit, region=region)
         self._ensure_model()
         results: list[dict[str, Any]] = []
         for trend in trend_list:

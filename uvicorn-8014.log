@@ -1,0 +1,4 @@
+INFO:     127.0.0.1:50225 - "POST /auth/register HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:50225 - "POST /api/generate-linkedin-post HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:59329 - "POST /auth/register HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:59329 - "POST /api/generate-linkedin-post HTTP/1.1" 200 OK

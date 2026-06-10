@@ -9,10 +9,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from backend.auth import get_current_user_optional
 from backend.config import settings
 from backend.database import init_db
+from backend.routers.auth import router as auth_router
 from backend.routers.api import router as api_router
 from backend.routers.web import router as web_router
 from backend.routers.ws import router as ws_router
@@ -28,6 +31,12 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
 
+
+class CurrentUserMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        request.state.current_user = get_current_user_optional(request)
+        return await call_next(request)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -41,9 +50,12 @@ app.add_middleware(
     allowed_hosts=settings.trusted_hosts,
 )
 
+app.add_middleware(CurrentUserMiddleware)
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 app.include_router(web_router)
+app.include_router(auth_router)
 app.include_router(api_router)
 app.include_router(ws_router)
 
@@ -63,11 +75,23 @@ def _validate_environment() -> None:
         logger.info("All optional API keys are configured.")
 
 
+def _log_registered_routes() -> None:
+    routes = sorted(
+        {
+            route.path
+            for route in app.routes
+            if getattr(route, "path", None) and (route.path.startswith("/api") or route.path.startswith("/ws"))
+        }
+    )
+    logger.info("Registered routes: %s", ", ".join(routes))
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     _validate_environment()
     websocket_manager.set_event_loop(asyncio.get_running_loop())
     init_db()
+    _log_registered_routes()
     logger.info("TrendHunter AI started in %s mode.", settings.app_env)
 
 

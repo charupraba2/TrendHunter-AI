@@ -17,10 +17,10 @@ class RAGService:
     def __init__(self) -> None:
         self.gemini_service = GeminiService()
 
-    def retrieve_similar_trends(self, title: str, description: str = "", limit: int = 5) -> list[dict[str, Any]]:
+    def retrieve_similar_trends(self, title: str, description: str = "", limit: int = 5, region: str | None = None) -> list[dict[str, Any]]:
         title_norm = self._normalize_text(title)
         description_norm = self._normalize_text(description)
-        candidate_trends = get_all_trends(limit=500)
+        candidate_trends = get_all_trends(limit=500, region=region)
         alert_trend_ids = {alert["trend_id"] for alert in get_alerts(500)}
 
         scored: list[dict[str, Any]] = []
@@ -68,14 +68,14 @@ class RAGService:
             )
         return json.dumps(lines, ensure_ascii=False, indent=2)
 
-    def rag_analyze_trend(self, title: str, description: str = "") -> dict[str, Any]:
+    def rag_analyze_trend(self, title: str, description: str = "", region: str | None = None) -> dict[str, Any]:
         title = (title or "").strip()
         description = (description or "").strip()
 
         if not title:
             raise ValueError("title is required for RAG analysis")
 
-        similar_trends = self.retrieve_similar_trends(title, description)
+        similar_trends = self.retrieve_similar_trends(title, description, region=region)
         context = self.build_rag_context(similar_trends)
 
         gemini_analysis = self._generate_rag_analysis(title, description, similar_trends, context)

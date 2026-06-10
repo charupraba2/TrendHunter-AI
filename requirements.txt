@@ -12,7 +12,14 @@ praw
 pytrends
 google-generativeai
 google-api-python-client
+openai
 newsapi-python
 joblib
 httpx
 vaderSentiment
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+reportlab
+beautifulsoup4
+nltk

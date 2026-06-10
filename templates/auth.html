@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="auth-shell reveal">
+  <div class="auth-panel glass-panel">
+    <div class="auth-panel__copy">
+      <p class="eyebrow">TrendHunter AI</p>
+      <h1>{{ auth_heading }}</h1>
+      <p class="lead">{{ auth_copy }}</p>
+      <div class="auth-points">
+        <div class="auth-point">
+          <strong>Protected dashboard</strong>
+          <p>Keep your analysis workspace private with secure JWT sessions.</p>
+        </div>
+        <div class="auth-point">
+          <strong>Export-ready reports</strong>
+          <p>Generate LinkedIn posts and PDF reports directly from analysis results.</p>
+        </div>
+      </div>
+    </div>
+
+    <form class="auth-form glass-panel" method="post" action="{{ auth_action }}">
+      {% if auth_mode == "register" %}
+      <label class="control-group">
+        <span>Username</span>
+        <input name="username" type="text" placeholder="Your username" required minlength="3" />
+      </label>
+      <label class="control-group">
+        <span>Email</span>
+        <input name="email" type="email" placeholder="you@example.com" required />
+      </label>
+      {% else %}
+      <label class="control-group">
+        <span>Username or Email</span>
+        <input name="username" type="text" placeholder="username or email" required />
+      </label>
+      {% endif %}
+      <label class="control-group">
+        <span>Password</span>
+        <input name="password" type="password" placeholder="At least 8 characters" required minlength="8" />
+      </label>
+      <button class="button primary button--glow auth-submit" type="submit">{{ auth_cta }}</button>
+      <p class="auth-switch">
+        {% if auth_mode == "register" %}
+        Already have an account? <a href="/login">Login here</a>.
+        {% else %}
+        New here? <a href="/register">Create an account</a>.
+        {% endif %}
+      </p>
+    </form>
+  </div>
+</section>
+{% endblock %}
