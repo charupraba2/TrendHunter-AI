@@ -61,6 +61,7 @@ function setupDashboard(root) {
   const alertsEmpty = document.getElementById("alerts-empty");
   const dashboardTabs = Array.from(root.querySelectorAll("[data-dashboard-tab]"));
   const dashboardPanels = Array.from(root.querySelectorAll("[data-tab-panel]"));
+  const pageSections = Array.from(root.querySelectorAll(".page-section"));
   const dashboardWorkspaceSearch = document.getElementById("dashboard-workspace-search");
   const dashboardNotificationsBtn = document.getElementById("dashboard-notifications-btn");
   const dashboardProfileBtn = document.getElementById("dashboard-profile-btn");
@@ -273,7 +274,7 @@ function setupDashboard(root) {
       sentiment: "all",
       sort: "latest",
     },
-    activeTab: "overview",
+    activeTab: "dashboard",
     loading: false,
     ws: {
       socket: null,
@@ -310,18 +311,37 @@ function setupDashboard(root) {
     }
   }
 
+  function normalizeDashboardTab(tabName) {
+    const value = String(tabName || "dashboard").toLowerCase();
+    const aliases = {
+      overview: "dashboard",
+      dashboard: "dashboard",
+      analyze: "analyze",
+      trends: "intelligence",
+      intelligence: "intelligence",
+      strategy: "competitor",
+      competitor: "competitor",
+      performance: "forecast",
+      forecast: "forecast",
+      assistant: "assistant",
+      settings: "settings",
+    };
+    return aliases[value] || "dashboard";
+  }
+
   function setDashboardTab(tabName) {
-    const nextTab = tabName || "overview";
+    const nextTab = normalizeDashboardTab(tabName);
     state.activeTab = nextTab;
     dashboardTabs.forEach((button) => {
-      const isActive = button.dataset.dashboardTab === nextTab;
+      const isActive = normalizeDashboardTab(button.dataset.dashboardTab) === nextTab;
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-selected", isActive ? "true" : "false");
     });
-    dashboardPanels.forEach((panel) => {
-      const isActive = panel.dataset.tabPanel === nextTab;
-      panel.classList.toggle("is-active", isActive);
-      panel.hidden = !isActive;
+    pageSections.forEach((section) => {
+      const isActive = normalizeDashboardTab(section.dataset.pageSection || section.dataset.tabPanel) === nextTab;
+      section.classList.toggle("active", isActive);
+      section.classList.toggle("is-active", isActive);
+      section.hidden = !isActive;
     });
     window.requestAnimationFrame(() => {
       window.dispatchEvent(new Event("resize"));
@@ -4703,7 +4723,7 @@ function setupDashboard(root) {
   }
 
   if (sidebarAssistantBtn) {
-    sidebarAssistantBtn.addEventListener("click", openAssistantSidebar);
+    sidebarAssistantBtn.addEventListener("click", () => setDashboardTab("assistant"));
   }
 
   if (openAssistantSidebarBtn) {
@@ -4712,14 +4732,14 @@ function setupDashboard(root) {
 
   if (sidebarSettingsBtn) {
     sidebarSettingsBtn.addEventListener("click", () => {
-      showToast("Settings panel coming soon.");
+      setDashboardTab("settings");
     });
   }
 
   if (dashboardNotificationsBtn) {
     dashboardNotificationsBtn.addEventListener("click", () => {
-      setDashboardTab("trends");
-      showToast("Live alerts are visible in the right rail.");
+      setDashboardTab("intelligence");
+      showToast("Live alerts are visible in the Intelligence Lab section.");
     });
   }
 
@@ -4731,10 +4751,10 @@ function setupDashboard(root) {
 
   dashboardTabs.forEach((button) => {
     button.addEventListener("click", () => {
-      setDashboardTab(button.dataset.dashboardTab || "overview");
+      setDashboardTab(button.dataset.dashboardTab || "dashboard");
     });
   });
-  setDashboardTab(state.activeTab || "overview");
+  setDashboardTab(state.activeTab || "dashboard");
 
   if (modal) {
     modal.addEventListener("click", (event) => {

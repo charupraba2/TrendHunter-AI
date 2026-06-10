@@ -45,13 +45,13 @@
         <strong>Premium Intelligence Workspace</strong>
       </div>
       <nav class="dashboard-sidebar__nav" aria-label="Dashboard navigation">
-        <button class="dashboard-sidebar__item dashboard-tab is-active" type="button" data-dashboard-tab="overview" aria-selected="true">Dashboard</button>
+        <button class="dashboard-sidebar__item dashboard-tab is-active" type="button" data-dashboard-tab="dashboard" aria-selected="true">Dashboard</button>
         <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="analyze" aria-selected="false">Analyze Post</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="trends" aria-selected="false">Intelligence Lab</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="strategy" aria-selected="false">Competitor Insights</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="performance" aria-selected="false">Forecast Studio</button>
-        <button class="dashboard-sidebar__item" type="button" id="sidebar-assistant-btn">AI Assistant</button>
-        <button class="dashboard-sidebar__item" type="button" id="sidebar-settings-btn">Settings</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="intelligence" aria-selected="false">Intelligence Lab</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="competitor" aria-selected="false">Competitor Insights</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="forecast" aria-selected="false">Forecast Studio</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="assistant" aria-selected="false" id="sidebar-assistant-btn">AI Assistant</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="settings" aria-selected="false" id="sidebar-settings-btn">Settings</button>
       </nav>
       <div class="dashboard-sidebar__mini">
         <span class="chip chip--live">Live</span>
@@ -60,7 +60,7 @@
     </aside>
 
     <div class="dashboard-center main-workspace">
-      <section class="dashboard-overview glass-panel" data-tab-panel="overview">
+      <section class="dashboard-overview glass-panel page-section active" data-page-section="dashboard" data-tab-panel="dashboard">
         <div class="section-header dashboard-overview__header">
           <div>
             <p class="eyebrow">Dashboard</p>
@@ -88,7 +88,7 @@
         </div>
       </section>
 
-      <section class="dashboard-intelbar glass-panel">
+      <section class="dashboard-intelbar glass-panel page-section" data-page-section="dashboard" data-tab-panel="dashboard">
         <div class="dashboard-intelbar__card dashboard-intelbar__card--live">
           <div class="section-header section-header--compact">
             <div>
@@ -151,7 +151,7 @@
         </div>
       </section>
 
-  <section class="creator-lab glass-panel" id="creator-lab" data-tab-panel="analyze">
+  <section class="creator-lab glass-panel page-section" id="creator-lab" data-page-section="analyze" data-tab-panel="analyze">
     <div class="section-header creator-lab__header">
       <div>
         <p class="eyebrow">Creator Intelligence Lab</p>
@@ -254,7 +254,7 @@
     </div>
   </section>
 
-  <section class="performance-lab glass-panel" id="performance-lab" data-tab-panel="performance">
+  <section class="performance-lab glass-panel page-section" id="performance-lab" data-page-section="forecast" data-tab-panel="forecast">
     <div class="section-header performance-lab__header">
       <div>
         <p class="eyebrow">Forecast Studio</p>
@@ -435,7 +435,7 @@
     </div>
   </section>
 
-  <section class="strategy-panel glass-panel" id="strategy-panel" data-tab-panel="strategy">
+  <section class="strategy-panel glass-panel page-section" id="strategy-panel" data-page-section="competitor" data-tab-panel="competitor">
     <div class="section-header strategy-panel__header">
       <div>
         <p class="eyebrow">AI Strategy Panel</p>
@@ -460,7 +460,7 @@
     </div>
   </section>
 
-  <section class="platform-intelligence glass-panel" id="platform-intelligence" data-tab-panel="strategy">
+  <section class="platform-intelligence glass-panel page-section" id="platform-intelligence" data-page-section="competitor" data-tab-panel="competitor">
     <div class="section-header platform-intelligence__header">
       <div>
         <p class="eyebrow">Platform Intelligence</p>
@@ -523,7 +523,7 @@
     </div>
   </section>
 
-  <section class="viral-analytics glass-panel" data-tab-panel="analyze">
+  <section class="viral-analytics glass-panel page-section" data-page-section="analyze" data-tab-panel="analyze">
     <div class="section-header viral-analytics__header">
       <div>
         <p class="eyebrow">Viral Score Breakdown</p>
@@ -622,7 +622,7 @@
     </article>
   </section>
 
-  <section class="trend-snapshot glass-panel" data-tab-panel="analyze">
+  <section class="trend-snapshot glass-panel page-section" data-page-section="analyze" data-tab-panel="analyze">
     <div class="section-header trend-snapshot__header">
       <div>
         <p class="eyebrow">Current Trend Snapshot</p>
@@ -659,7 +659,7 @@
     </div>
   </section>
 
-  <section class="competitor-lab glass-panel" data-tab-panel="strategy">
+  <section class="competitor-lab glass-panel page-section" data-page-section="competitor" data-tab-panel="competitor">
     <div class="section-header competitor-lab__header">
       <div>
         <p class="eyebrow">Competitor Analysis</p>
@@ -706,7 +706,7 @@
     </div>
   </section>
 
-  <div class="dashboard-toolbar glass-panel" data-tab-panel="trends">
+  <div class="dashboard-toolbar glass-panel page-section" data-page-section="intelligence" data-tab-panel="intelligence">
     <div class="toolbar-grid">
       <label class="control-group">
         <span>Search</span>
@@ -753,7 +753,7 @@
     </div>
   </div>
 
-  <div class="dashboard-status" id="dashboard-status" aria-live="polite" data-tab-panel="trends">
+  <div class="dashboard-status page-section" id="dashboard-status" aria-live="polite" data-page-section="intelligence" data-tab-panel="intelligence">
     <span class="dashboard-status__text">Loading stored trends...</span>
     <span class="dashboard-status__loader" id="dashboard-loader" aria-hidden="true">
       <span></span>
@@ -762,7 +762,7 @@
     </span>
   </div>
 
-      <section class="trend-board" data-tab-panel="trends">
+      <section class="trend-board page-section" data-page-section="intelligence" data-tab-panel="intelligence">
         <div class="trend-board__header">
           <div>
             <p class="eyebrow">Latest stored trends</p>
@@ -779,6 +779,46 @@
         <div class="empty-state glass-panel" id="dashboard-empty">
           <h3>No trends loaded yet</h3>
           <p>Use the live fetch buttons to populate the workspace with real trend data.</p>
+        </div>
+      </section>
+
+      <section class="assistant-workspace glass-panel page-section" id="assistantSection" data-page-section="assistant">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">AI Assistant</p>
+            <h2>Conversation workspace</h2>
+          </div>
+          <p class="section-copy">Use the floating assistant to ask strategy, forecast, or trend questions without leaving the dashboard.</p>
+        </div>
+        <div class="assistant-workspace__grid">
+          <article class="assistant-workspace__card">
+            <span>Quick prompts</span>
+            <p>Ask things like: "Will this trend die soon?", "Should I repost?", or "What should I improve next?"</p>
+          </article>
+          <article class="assistant-workspace__card">
+            <span>Live support</span>
+            <p>The assistant panel stays available as a fast overlay for instant follow-up guidance and creator strategy.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="settings-workspace glass-panel page-section" id="settingsSection" data-page-section="settings">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Settings</p>
+            <h2>Workspace preferences</h2>
+          </div>
+          <p class="section-copy">Tune your local workspace experience and keep the dashboard focused on the signals that matter most.</p>
+        </div>
+        <div class="settings-workspace__grid">
+          <article class="assistant-workspace__card">
+            <span>Theme</span>
+            <p>Emerald Dark Intelligence stays active as the premium matte-black dashboard style.</p>
+          </article>
+          <article class="assistant-workspace__card">
+            <span>Notifications</span>
+            <p>Use alerts, forecast updates, and live trend signals to stay on top of the workspace activity feed.</p>
+          </article>
         </div>
       </section>
     </div>

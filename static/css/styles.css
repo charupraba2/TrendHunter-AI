@@ -905,6 +905,11 @@ button {
   min-width: 0;
 }
 
+.dashboard-center > .page-section {
+  width: 100%;
+  min-width: 0;
+}
+
 .main-workspace {
   width: 100%;
   min-width: 0;
@@ -1066,6 +1071,44 @@ button {
   background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(255, 255, 255, 0.03));
 }
 
+.assistant-workspace,
+.settings-workspace {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  min-width: 0;
+}
+
+.assistant-workspace__grid,
+.settings-workspace__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.assistant-workspace__card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+}
+
+.assistant-workspace__card span {
+  color: var(--accent-2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+}
+
+.assistant-workspace__card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .dashboard-tab {
   position: relative;
   z-index: 1;
@@ -1104,6 +1147,34 @@ button {
 
 .dashboard-shell [data-tab-panel][hidden] {
   display: none !important;
+}
+
+.dashboard-shell .page-section {
+  display: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-shell .page-section.active {
+  display: grid;
+  gap: 18px;
+  align-items: start;
+  animation: panelFadeIn 220ms ease;
+}
+
+.dashboard-status.page-section.active {
+  display: flex;
+}
+
+.dashboard-shell .page-section[hidden] {
+  display: none !important;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
 }
 
 @keyframes panelFadeIn {
