@@ -1,2 +1,0 @@
-INFO:     127.0.0.1:51911 - "POST /auth/register HTTP/1.1" 303 See Other
-INFO:     127.0.0.1:51911 - "GET /dashboard HTTP/1.1" 200 OK
