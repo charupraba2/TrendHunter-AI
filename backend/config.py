@@ -20,7 +20,10 @@ class Settings:
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./database/trendhunter.db")
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     allowed_origins_raw: str = os.getenv("ALLOWED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000")
-    trusted_hosts_raw: str = os.getenv("TRUSTED_HOSTS", "127.0.0.1,localhost,0.0.0.0")
+    trusted_hosts_raw: str = os.getenv(
+        "TRUSTED_HOSTS",
+        "127.0.0.1,localhost,0.0.0.0,trendhunter-ai-latest.onrender.com,*.onrender.com",
+    )
     reddit_client_id: str = os.getenv("REDDIT_CLIENT_ID", "")
     reddit_client_secret: str = os.getenv("REDDIT_CLIENT_SECRET", "")
     reddit_user_agent: str = os.getenv("REDDIT_USER_AGENT", "TrendHunterAI/1.0")
@@ -36,7 +39,24 @@ class Settings:
 
     @property
     def trusted_hosts(self) -> list[str]:
-        return [host.strip() for host in self.trusted_hosts_raw.split(",") if host.strip()]
+        hosts = [host.strip() for host in self.trusted_hosts_raw.split(",") if host.strip()]
+        if "*" in hosts:
+            return ["*"]
+
+        required_hosts = [
+            "127.0.0.1",
+            "localhost",
+            "trendhunter-ai-latest.onrender.com",
+            "*.onrender.com",
+        ]
+        render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+        if render_hostname:
+            required_hosts.insert(0, render_hostname)
+        merged: list[str] = []
+        for host in [*hosts, *required_hosts]:
+            if host and host not in merged:
+                merged.append(host)
+        return merged
 
 
 settings = Settings()
