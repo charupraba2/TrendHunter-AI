@@ -316,6 +316,8 @@ class PostPerformanceService:
             momentum=momentum,
             growth_speed=growth_speed,
             engagement_velocity=engagement_velocity,
+            trend_strength=trend_strength,
+            engagement_decay=engagement_decay,
             profile=profile,
         )
         forecast["expected_engagement_growth"] = round(profile["engagement_growth"], 2)
@@ -343,6 +345,12 @@ class PostPerformanceService:
             "engagement_velocity": round(engagement_velocity, 2),
             "engagement_quality": round(profile["engagement_quality"], 2),
             "trend_relevance": round(trend_relevance, 2),
+            "virality_score": round(momentum, 2),
+            "engagement_probability": round(profile["algorithm_pickup_probability"], 2),
+            "forecast_confidence": round(forecast["forecast_confidence_score"], 2),
+            "growth_status": forecast["growth_status"],
+            "viral_probability": round(forecast["viral_probability"], 2),
+            "trend_momentum_score": round(forecast["trend_momentum_score"], 2),
             "algorithm_pickup_probability": round(profile["algorithm_pickup_probability"], 2),
             "saturation_risk": round(profile["saturation_risk"], 2),
             "post_age": post_age,
@@ -612,18 +620,113 @@ class PostPerformanceService:
         momentum: float,
         growth_speed: float,
         engagement_velocity: float,
+        trend_strength: float,
+        engagement_decay: float,
         profile: dict[str, Any],
     ) -> dict[str, Any]:
-        base_reach = self._safe_number(profile.get("reach"))
-        expected_reach = int(base_reach * (1.08 + momentum / 260.0 + growth_speed / 340.0))
-        expected_impressions = int(expected_reach * (1.18 + engagement_velocity / 220.0))
+        base_reach = max(1.0, self._safe_number(profile.get("reach")))
+        base_likes = max(1.0, self._safe_number(profile.get("likes")))
+        base_comments = max(0.0, self._safe_number(profile.get("comments")))
+        base_shares = max(0.0, self._safe_number(profile.get("shares")))
+        age_hours = max(0.5, self._safe_number(profile.get("age_hours")) or 0.5)
+        engagement_quality = self._safe_number(profile.get("engagement_quality"))
+        algorithm_pickup_probability = self._safe_number(profile.get("algorithm_pickup_probability"))
+        saturation_risk = self._safe_number(profile.get("saturation_risk"))
+
+        viral_probability = self._clamp(
+            (algorithm_pickup_probability * 0.68)
+            + (trend_strength * 0.18)
+            + (momentum * 0.08)
+            + ((100.0 - engagement_decay) * 0.06),
+            0.0,
+            100.0,
+        )
+        trend_momentum_score = self._clamp(
+            (momentum * 0.52)
+            + (growth_speed * 0.18)
+            + (engagement_velocity * 0.18)
+            + (trend_strength * 0.12),
+            0.0,
+            100.0,
+        )
+        forecast_confidence = self._clamp(
+            45.0
+            + (viral_probability * 0.22)
+            + (engagement_quality * 0.14)
+            + (trend_strength * 0.10)
+            - (saturation_risk * 0.10)
+            - min(age_hours, 48.0) * 0.18,
+            35.0,
+            98.0,
+        )
+        base_growth = self._clamp(
+            ((momentum * 0.32) + (growth_speed * 0.22) + (engagement_velocity * 0.16) + (engagement_quality * 0.18) + (trend_strength * 0.12)) / 100.0,
+            0.0,
+            0.28,
+        )
+        decay_drag = self._clamp((engagement_decay / 260.0) + (age_hours / 120.0) + (saturation_risk / 420.0), 0.02, 0.38)
+        net_growth = self._clamp(base_growth - decay_drag, -0.16, 0.24)
+
+        window_hours = [1, 6, 24, 168]
+        window_labels = ["Next 1 Hour", "Next 6 Hours", "Next 24 Hours", "Next 7 Days"]
+        likes_forecast: dict[str, int] = {}
+        reach_forecast: dict[str, int] = {}
+        engagement_forecast: dict[str, int] = {}
+        timeline_likes: list[int] = []
+        timeline_reach: list[int] = []
+        timeline_engagement: list[int] = []
+
+        for hours, label in zip(window_hours, window_labels):
+            window_scale = 0.28 + (math.sqrt(hours / 168.0) * 0.92)
+            window_decay = (engagement_decay / 300.0) * (hours / 168.0) * 1.25
+            age_decay = (age_hours / 96.0) * (hours / 168.0) * 0.55
+            multiplier = self._clamp(1.0 + (net_growth * window_scale * 3.4) - window_decay - age_decay, 0.45, 4.5)
+
+            likes_value = max(1, int(round(base_likes * multiplier)))
+            comments_value = max(0, int(round(base_comments * (multiplier * 0.92 + (viral_probability / 460.0)))))
+            shares_value = max(0, int(round(base_shares * (multiplier * 0.86 + (trend_momentum_score / 560.0)))))
+            reach_value = max(1, int(round(base_reach * (multiplier + (viral_probability / 540.0)))))
+            engagement_value = max(1, int(round(likes_value + (comments_value * 2.0) + (shares_value * 3.0))))
+
+            likes_forecast[label] = likes_value
+            reach_forecast[label] = reach_value
+            engagement_forecast[label] = engagement_value
+            timeline_likes.append(likes_value)
+            timeline_reach.append(reach_value)
+            timeline_engagement.append(engagement_value)
+
+        expected_reach = reach_forecast["Next 24 Hours"]
+        expected_impressions = int(expected_reach * (1.12 + viral_probability / 260.0))
         peak_engagement_time = self._peak_time(platform, region, lifecycle_stage)
-        engagement_decay = self._clamp(100.0 - ((momentum * 0.55) + (growth_speed * 0.35) + (engagement_velocity * 0.10)), 5.0, 92.0)
+        if net_growth <= -0.03 or engagement_decay >= 68.0:
+            growth_status = "Declining"
+        elif net_growth >= 0.12 or viral_probability >= 82.0:
+            growth_status = "Exploding"
+        elif net_growth >= 0.04:
+            growth_status = "Growing"
+        else:
+            growth_status = "Stable"
+
         return {
             "expected_reach": expected_reach,
             "expected_impressions": expected_impressions,
             "peak_engagement_time": peak_engagement_time,
             "engagement_decay": round(engagement_decay, 2),
+            "viral_probability": round(viral_probability, 2),
+            "trend_momentum_score": round(trend_momentum_score, 2),
+            "forecast_confidence_score": round(forecast_confidence, 2),
+            "growth_status": growth_status,
+            "likes_forecast": likes_forecast,
+            "reach_forecast": reach_forecast,
+            "engagement_forecast": engagement_forecast,
+            "forecast_timeline": {
+                "labels": window_labels,
+                "hours": window_hours,
+                "likes": timeline_likes,
+                "reach": timeline_reach,
+                "engagement": timeline_engagement,
+            },
+            "forecast_summary": f"{growth_status} outlook with {viral_probability:.0f}% viral probability and {forecast_confidence:.0f}% confidence",
         }
 
     def _peak_time(self, platform: str, region: str, lifecycle_stage: str) -> str:

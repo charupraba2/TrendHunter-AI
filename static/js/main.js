@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+﻿document.addEventListener("DOMContentLoaded", () => {
   const dashboardApp = document.getElementById("dashboard-app");
   if (dashboardApp) {
     setupDashboard(dashboardApp);
@@ -24,13 +24,19 @@ document.addEventListener("DOMContentLoaded", () => {
   revealItems.forEach((item) => observer.observe(item));
 });
 
+function debugLog(...args) {
+  if (window.__TRENDHUNTER_DEBUG__) {
+    console.log(...args);
+  }
+}
+
 document.addEventListener("click", async (event) => {
   const button = event.target && typeof event.target.closest === "function" ? event.target.closest("#trackPostBtn") : null;
   if (!button) return;
   const lastHandled = Number(window.__trackPostClickStamp || 0);
   if (Date.now() - lastHandled < 500) return;
   event.preventDefault();
-  console.log("Track Performance clicked via delegation");
+  debugLog("Track Performance clicked via delegation");
   if (typeof window.trackPublishedPost === "function") {
     await window.trackPublishedPost();
   }
@@ -43,6 +49,7 @@ function setupDashboard(root) {
   window.generatedLinkedInPost = window.generatedLinkedInPost || "";
   window.selectedRegion = window.selectedRegion || "India";
   window.visualAnalytics = window.visualAnalytics || {
+    dashboardPulse: null,
     radar: null,
     bar: null,
     comparison: null,
@@ -55,7 +62,6 @@ function setupDashboard(root) {
   };
   const apiUrl = root.dataset.trendsApi || "/api/trends";
   const grid = document.getElementById("trend-grid");
-  const emptyState = document.getElementById("dashboard-empty");
   const status = document.getElementById("dashboard-status");
   const alertsList = document.getElementById("alerts-list");
   const alertsEmpty = document.getElementById("alerts-empty");
@@ -65,6 +71,19 @@ function setupDashboard(root) {
   const dashboardWorkspaceSearch = document.getElementById("dashboard-workspace-search");
   const dashboardNotificationsBtn = document.getElementById("dashboard-notifications-btn");
   const dashboardProfileBtn = document.getElementById("dashboard-profile-btn");
+  const dashboardTrendCountPill = document.getElementById("dashboard-trend-count-pill");
+  const dashboardHighViralPill = document.getElementById("dashboard-high-viral-pill");
+  const dashboardOpportunityPill = document.getElementById("dashboard-opportunity-pill");
+  const dashboardGreetingTitle = document.getElementById("dashboardGreetingTitle");
+  const dashboardGreetingMeta = document.getElementById("dashboardGreetingMeta");
+  const dashboardModePill = document.getElementById("dashboard-mode-pill");
+  const dashboardActivePill = document.getElementById("dashboard-active-pill");
+  const dashboardPulseChartCanvas = document.getElementById("dashboardPulseChart");
+  const dashboardPulseStatus = document.getElementById("dashboardPulseStatus");
+  const dashboardOpportunitiesList = document.getElementById("dashboard-opportunities-list");
+  const dashboardRecommendationTitle = document.getElementById("dashboardRecommendationTitle");
+  const dashboardRecommendationText = document.getElementById("dashboardRecommendationText");
+  const dashboardLiveFeed = document.getElementById("dashboard-live-feed");
   const sidebarAssistantBtn = document.getElementById("sidebar-assistant-btn");
   const sidebarSettingsBtn = document.getElementById("sidebar-settings-btn");
   const openAssistantSidebarBtn = document.getElementById("openAssistantSidebarBtn");
@@ -94,6 +113,7 @@ function setupDashboard(root) {
   const viralityFilter = document.getElementById("virality-filter");
   const sentimentFilter = document.getElementById("sentiment-filter");
   const sortFilter = document.getElementById("sort-filter");
+  const trendModeSelect = document.getElementById("trend-mode") || document.getElementById("trendMode");
   const statTotal = document.getElementById("stat-total");
   const statHighViral = document.getElementById("stat-high-viral");
   const statActiveAlerts = document.getElementById("stat-active-alerts");
@@ -132,6 +152,7 @@ function setupDashboard(root) {
   const creatorForm = document.getElementById("creator-form");
   const creatorAnalyzeBtn = document.getElementById("creator-analyze-btn");
   const creatorDemoBtn = document.getElementById("creator-demo-btn");
+  const creatorModeButtons = Array.from(root.querySelectorAll("[data-creator-mode]"));
   const generateLinkedInBtn = document.getElementById("generate-linkedin-btn");
   const clearAnalysisBtn = document.getElementById("clearAnalysisBtn");
   const creatorPlatform = document.getElementById("creator-platform");
@@ -241,7 +262,7 @@ function setupDashboard(root) {
   const assistantInput = aiChatInput;
   const assistantSend = aiChatSendBtn;
   const assistantMessages = aiChatMessages;
-  console.log("AI Assistant elements:", aiBtn, aiPanel);
+  debugLog("AI Assistant elements:", aiBtn, aiPanel);
   const workspaceRefreshBtn = document.getElementById("workspace-refresh-btn");
   const workspaceAnalyses = document.getElementById("workspace-analyses");
   const workspaceLinkedInPosts = document.getElementById("workspace-linkedin-posts");
@@ -260,11 +281,15 @@ function setupDashboard(root) {
   const liveActivityFeed = document.getElementById("live-activity-feed");
   const soundToggle = document.getElementById("sound-toggle");
   const trendSkeletons = document.getElementById("trend-skeletons");
+  const trendBoardTitle = document.getElementById("trend-board-title");
+  const trendBoardCopy = document.getElementById("trend-board-copy");
+  const trendModeNotice = document.getElementById("trend-mode-notice");
   const alertsApiUrl = "/api/alerts";
 
   const state = {
     allTrends: [],
     filteredTrends: [],
+    dashboardAllTrendsSnapshot: [],
     alerts: [],
     currentTrends: [],
     filters: {
@@ -291,16 +316,18 @@ function setupDashboard(root) {
       currentForecastPayload: null,
       currentCreatorPayload: null,
       currentLinkedInPost: null,
+      requestedLinkedInGeneration: false,
       currentStrategyPayload: null,
       currentTrendSnapshot: null,
       currentThumbnailResult: null,
+      currentThumbnailFile: null,
       currentThumbnailPreviewUrl: null,
       currentAssistantTyping: null,
       currentPostPerformance: null,
     },
   };
 
-  state.forecastMode = forecastModeSelect?.value || state.forecastMode || "Global";
+  state.forecastMode = forecastModeSelect?.value || getSelectedTrendMode() || "Global";
   syncForecastStudioUI(state.forecastMode);
 
   function setStatus(message) {
@@ -363,6 +390,22 @@ function setupDashboard(root) {
     if (trendSkeletons) {
       trendSkeletons.classList.toggle("is-visible", isLoading && state.allTrends.length === 0);
     }
+    if (dashboardPulseStatus) {
+      dashboardPulseStatus.hidden = !isLoading;
+      dashboardPulseStatus.textContent = isLoading ? "Updating trend pulse..." : dashboardPulseStatus.textContent;
+    }
+  }
+
+  function showDashboardStatus(message, type = "info") {
+    if (!status) return;
+    status.dataset.kind = type;
+    const statusTextNode = status.querySelector(".dashboard-status__text");
+    if (statusTextNode) {
+      statusTextNode.textContent = message || "";
+    } else {
+      status.textContent = message || "";
+    }
+    status.classList.toggle("is-loading", type === "loading");
   }
 
   function setLiveStatus(connected, message) {
@@ -738,16 +781,128 @@ function setupDashboard(root) {
     return escapeHtml(Math.round(number).toString());
   }
 
+  function getGreetingLabel() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  }
+
+  function getSelectedTrendMode() {
+    try {
+      const element = trendModeSelect || document.getElementById("trend-mode") || document.getElementById("trendMode");
+      const value = element?.value || window.selectedTrendMode || "Global";
+      const normalized = String(value || "Global").trim();
+      window.selectedTrendMode = normalized || "Global";
+      return window.selectedTrendMode;
+    } catch (error) {
+      console.warn("Falling back to Global trend mode", error);
+      window.selectedTrendMode = "Global";
+      return "Global";
+    }
+  }
+
+  function getDashboardModeLabel(mode = getSelectedTrendMode()) {
+    return `${mode || "Global"} Mode`;
+  }
+
+  function currentTrendMomentumScore(trend) {
+    const virality = safeNumber(trend.virality_score);
+    const opportunity = safeNumber(trend.opportunity_score);
+    return Math.max(0, Math.min(100, virality * 0.6 + opportunity * 0.4));
+  }
+
+  function getTrendSortByVirality(items) {
+    return [...(Array.isArray(items) ? items : [])].sort((a, b) => safeNumber(b?.virality_score) - safeNumber(a?.virality_score));
+  }
+
+  function getTrendSortByOpportunity(items) {
+    return [...(Array.isArray(items) ? items : [])].sort((a, b) => {
+      const scoreB = safeNumber(b?.opportunity_score ?? b?.virality_score);
+      const scoreA = safeNumber(a?.opportunity_score ?? a?.virality_score);
+      return scoreB - scoreA;
+    });
+  }
+
+  function getTrendCategoryLabel(trend = {}) {
+    const rawLabel =
+      trend?.category ||
+      trend?.category_name ||
+      trend?.topic ||
+      trend?.source_type ||
+      trend?.source_label ||
+      trend?.platform ||
+      trend?.subreddit ||
+      trend?.keyword ||
+      trend?.title ||
+      trend?.name ||
+      trend?.label ||
+      "";
+    const normalized = String(rawLabel || "").trim();
+    return normalized || "trend";
+  }
+
+  function getTrendSignalKey(trend) {
+    return String(trend?.source_uid || trend?.id || trend?.url || trend?.title || trend?.name || trend?.keyword || "").trim().toLowerCase();
+  }
+
+  function buildTrendSignalSnapshot(items) {
+    return (Array.isArray(items) ? items : []).map((trend) => ({
+      key: getTrendSignalKey(trend),
+      virality: safeNumber(trend.virality_score),
+      opportunity: safeNumber(trend.opportunity_score),
+      momentum: currentTrendMomentumScore(trend),
+    }));
+  }
+
+  function getTrendSnapshotIndex(items) {
+    const index = new Map();
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      if (item?.key) {
+        index.set(item.key, item);
+      }
+    });
+    return index;
+  }
+
+  function formatTrendDelta(current, previous) {
+    const currentValue = safeNumber(current);
+    const previousValue = safeNumber(previous);
+    if (!previousValue) {
+      return { label: currentValue ? "new" : "steady", className: "is-neutral" };
+    }
+    const change = ((currentValue - previousValue) / Math.max(previousValue, 1)) * 100;
+    const rounded = Math.round(change * 10) / 10;
+    if (Math.abs(rounded) < 0.5) {
+      return { label: "steady", className: "is-neutral" };
+    }
+    return {
+      label: `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}%`,
+      className: rounded > 0 ? "is-up" : "is-down",
+    };
+  }
+
   function calculateStats(items) {
-    const total = items.length;
-    const highViral = items.filter((trend) => safeNumber(trend.virality_score) >= 85).length;
+    const statsItems = Array.isArray(items) && items.length ? items : getDashboardFallbackTrends();
+    const total = statsItems.length;
+    const highViral = statsItems.filter((trend) => safeNumber(trend.virality_score) >= 85).length;
     const activeAlerts = state.alerts.filter((alert) => !alert.is_read).length;
-    const explodingForecasts = items.filter((trend) => (trend.prediction_label || "").toUpperCase() === "EXPLODING").length;
+    const explodingForecasts = statsItems.filter((trend) => (trend.prediction_label || "").toUpperCase() === "EXPLODING").length;
+    const opportunities = statsItems.filter((trend) => safeNumber(trend.opportunity_score) >= 75).length;
+
+    if (dashboardGreetingTitle) dashboardGreetingTitle.textContent = `${getGreetingLabel()}, Charu 👋`;
+    if (dashboardGreetingMeta) dashboardGreetingMeta.textContent = `${getDashboardModeLabel()} • ${total} Active Trends`;
+    if (dashboardModePill) dashboardModePill.textContent = getDashboardModeLabel();
+    if (dashboardActivePill) dashboardActivePill.textContent = `${total} Active Trends`;
+    if (window.selectedRegion !== getSelectedTrendRegion()) window.selectedRegion = getSelectedTrendRegion();
 
     if (statTotal) statTotal.textContent = String(total);
     if (statHighViral) statHighViral.textContent = String(highViral);
     if (statActiveAlerts) statActiveAlerts.textContent = String(activeAlerts);
     if (statExplodingForecasts) statExplodingForecasts.textContent = String(explodingForecasts);
+    if (dashboardTrendCountPill) dashboardTrendCountPill.textContent = `🔥 ${total} Trends`;
+    if (dashboardHighViralPill) dashboardHighViralPill.textContent = `📈 ${highViral} High Viral`;
+    if (dashboardOpportunityPill) dashboardOpportunityPill.textContent = `🎯 ${opportunities} Opportunities`;
   }
 
   function calculateForecastStats(items) {
@@ -762,71 +917,485 @@ function setupDashboard(root) {
     if (forecastDownward) forecastDownward.textContent = String(downward);
   }
 
-  function renderIntelligencePanel() {
-    const trends = state.filteredTrends.length ? state.filteredTrends : state.allTrends;
-    const ragPayload = state.ws.currentRagPayload || {};
-    const ragAnalysis = ragPayload.rag_analysis || {};
-    const forecastPayload = state.ws.currentForecastPayload || {};
-    const performancePayload = state.ws.currentPostPerformance || {};
-    const creatorPayload = state.ws.currentCreatorPayload || {};
-    const creatorRequest = creatorPayload.current_request || {};
-    const creatorAnalysis = creatorPayload.analysis || {};
-    const bestForecast = getBestForecastTrend(trends);
-    const topSource = getTopSource(trends);
+  function getDashboardRecommendation(items) {
+    const creatorAnalysis = state.ws.currentCreatorPayload?.analysis || {};
+    const bestOpportunity = getTrendSortByOpportunity(items)[0] || null;
+    const bestVirality = getTrendSortByVirality(items)[0] || null;
+    const target = bestOpportunity || bestVirality || null;
+    const platform = target?.platform || creatorAnalysis.platform || "your strongest platform";
+    const category = getTrendCategoryLabel(target || {});
+    const hook = creatorAnalysis.improved_hook || creatorAnalysis.hook || target?.title || target?.name || "the strongest live trend";
+    const timing = creatorAnalysis.best_posting_time || target?.best_posting_time || "today";
 
-    if (intelRagTitle) {
-      intelRagTitle.textContent = creatorRequest.title || ragPayload.current_trend || "No creator analysis yet";
-    }
-    if (intelRagText) {
-      intelRagText.textContent = creatorAnalysis.summary || ragAnalysis.final_recommendation || ragAnalysis.summary || "Run creator analysis or RAG to ground the next move in historical context.";
-    }
+    return target
+      ? {
+          summary: `Post ${category} on ${platform} today.`,
+          action: `Lead with ${hook}. Best time: ${timing}.`,
+        }
+      : {
+          summary: "Create content about AI video editing workflows today.",
+          action: "It has strong interest and low competition.",
+        };
+  }
 
-    const forecastTrend = creatorAnalysis.prediction_label ? creatorAnalysis : forecastPayload.forecast || bestForecast;
-    if (intelForecastTitle) {
-      intelForecastTitle.textContent = creatorAnalysis.prediction_label || forecastPayload.current_trend || forecastTrend?.title || "No forecast yet";
+  function destroyDashboardPulseChart() {
+    if (window.visualAnalytics.dashboardPulse) {
+      window.visualAnalytics.dashboardPulse.destroy();
+      window.visualAnalytics.dashboardPulse = null;
     }
-    if (intelForecastText) {
-      intelForecastText.textContent = creatorAnalysis.growth_strategy || creatorAnalysis.why_it_may_trend || forecastTrend?.forecast_explanation || forecastTrend?.recommended_creator_actions?.[0] || performancePayload.summary || performancePayload.analysis_notes?.[0] || "Generate a forecast or creator analysis to see the strongest recommendation.";
-    }
+  }
 
-    if (intelSourceTitle) {
-      intelSourceTitle.textContent = creatorRequest.platform_label || topSource.label || "Not available";
-    }
-    if (intelSourceText) {
-      intelSourceText.textContent = creatorAnalysis.audience_persona || creatorRequest.content_type || topSource.detail || "Fetch or refresh live trends to identify the most active source.";
-    }
+  function setDashboardPulseStatus(message, kind = "loading") {
+    if (!dashboardPulseStatus) return;
+    dashboardPulseStatus.textContent = message || "";
+    dashboardPulseStatus.hidden = !message;
+    dashboardPulseStatus.dataset.kind = kind;
+  }
 
-    if (intelLiveTitle) {
-      intelLiveTitle.textContent = creatorAnalysis.will_trend
-        ? "High-potential post detected"
-        : performancePayload.lifecycle_stage
-          ? `${performancePayload.lifecycle_stage} post performance`
-          : state.ws.connected
-            ? "Connected live"
-            : "Reconnecting";
-    }
-    if (intelLiveText) {
-      const liveBits = [];
-      if (creatorAnalysis.best_posting_time) {
-        liveBits.push(`Best time ${creatorAnalysis.best_posting_time}`);
-      }
-      if (creatorAnalysis.audience_fit !== undefined) {
-        liveBits.push(`Audience fit ${safeNumber(creatorAnalysis.audience_fit).toFixed(0)}%`);
-      }
-      if (performancePayload.virality_momentum !== undefined) {
-        liveBits.push(`Momentum ${safeNumber(performancePayload.virality_momentum).toFixed(0)}%`);
-      }
-      if (performancePayload.growth_speed !== undefined) {
-        liveBits.push(`Growth speed ${safeNumber(performancePayload.growth_speed).toFixed(0)}%`);
-      }
-      liveBits.push(`${state.ws.onlineUsers} connected users`);
-      if (state.ws.lastUpdated) {
-        liveBits.push(`Last update ${formatDate(state.ws.lastUpdated)}`);
+  function getDashboardFallbackTrends() {
+    return [
+      {
+        title: "AI video editing workflows",
+        platform: "linkedin",
+        source_label: "Trend Radar",
+        virality_score: 84,
+        opportunity_score: 88,
+        risk_score: 24,
+        prediction_label: "GROWING",
+        momentum_score: 79,
+        summary: "Creators are packaging AI editing tools into practical workflows.",
+      },
+      {
+        title: "AI agents for students",
+        platform: "youtube",
+        source_label: "Trend Radar",
+        virality_score: 77,
+        opportunity_score: 85,
+        risk_score: 28,
+        prediction_label: "GROWING",
+        momentum_score: 72,
+        summary: "Student productivity content is outperforming generic AI explainers.",
+      },
+      {
+        title: "Prompt engineering tools",
+        platform: "blog",
+        source_label: "Trend Radar",
+        virality_score: 71,
+        opportunity_score: 82,
+        risk_score: 31,
+        prediction_label: "STABLE",
+        momentum_score: 66,
+        summary: "Utility-driven prompt tools are earning attention across creator audiences.",
+      },
+    ];
+  }
+
+  function getDashboardFallbackOpportunityTrends() {
+    return [
+      {
+        title: "AI resume review tools",
+        platform: "linkedin",
+        source_label: "Trend Radar",
+        virality_score: 82,
+        opportunity_score: 91,
+        risk_score: 22,
+        prediction_label: "GROWING",
+        summary: "Career-focused AI posts are still converting well with small creator audiences.",
+      },
+      {
+        title: "LinkedIn content automation",
+        platform: "linkedin",
+        source_label: "Trend Radar",
+        virality_score: 79,
+        opportunity_score: 88,
+        risk_score: 26,
+        prediction_label: "GROWING",
+        summary: "Automation workflows help creators publish more without sacrificing quality.",
+      },
+      {
+        title: "Student AI productivity tools",
+        platform: "youtube",
+        source_label: "Trend Radar",
+        virality_score: 74,
+        opportunity_score: 84,
+        risk_score: 29,
+        prediction_label: "STABLE",
+        summary: "Student productivity tutorials remain useful and broadly clickable.",
+      },
+    ];
+  }
+
+  function getDashboardFallbackPulseDataset() {
+    return {
+      labels: ["Morning", "Afternoon", "Evening", "Night"],
+      virality: [25, 48, 72, 65],
+      momentum: [18, 42, 68, 58],
+      source: "fallback",
+    };
+  }
+
+  function getDashboardFallbackRecommendation() {
+    return {
+      summary: "Create content about AI video editing workflows today.",
+      action: "It has strong interest and low competition.",
+    };
+  }
+
+  function getDashboardFallbackLiveFeed() {
+    return [
+      { title: "AI video editing", platform: "trend signal", virality_score: 18, momentum_score: 14 },
+      { title: "AI agents", platform: "trend signal", virality_score: 12, momentum_score: 9 },
+      { title: "Prompt tools", platform: "trend signal", virality_score: 8, momentum_score: 6 },
+    ];
+  }
+
+  function getDashboardIntelligenceItems(items) {
+    const trends = Array.isArray(items) && items.length ? items : getDashboardFallbackTrends();
+    return { trends, isFallback: !Array.isArray(items) || items.length === 0 };
+  }
+
+  function drawFallbackDashboardPulseChart(canvas, dataset, theme) {
+    if (!canvas) return false;
+    const context = canvas.getContext?.("2d");
+    if (!context) return false;
+
+    const width = canvas.clientWidth || canvas.width || 640;
+    const height = canvas.clientHeight || canvas.height || 280;
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.max(1, Math.floor(width * dpr));
+    canvas.height = Math.max(1, Math.floor(height * dpr));
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+
+    const paddingX = 28;
+    const paddingY = 24;
+    const chartWidth = Math.max(1, width - paddingX * 2);
+    const chartHeight = Math.max(1, height - paddingY * 2);
+    const labels = dataset.labels || [];
+    const virality = dataset.virality || [];
+    const momentum = dataset.momentum || [];
+    const maxValue = Math.max(100, ...virality, ...momentum, 1);
+    const points = labels.map((_, index) => {
+      const x = paddingX + (labels.length === 1 ? chartWidth / 2 : (chartWidth * index) / (labels.length - 1));
+      const yVirality = paddingY + chartHeight - (safeNumber(virality[index]) / maxValue) * chartHeight;
+      const yMomentum = paddingY + chartHeight - (safeNumber(momentum[index]) / maxValue) * chartHeight;
+      return { x, yVirality, yMomentum };
+    });
+
+    context.strokeStyle = theme.grid;
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(paddingX, paddingY + chartHeight);
+    context.lineTo(paddingX + chartWidth, paddingY + chartHeight);
+    context.stroke();
+
+    context.fillStyle = theme.labels;
+    context.font = "600 12px Inter, system-ui, sans-serif";
+    context.textAlign = "center";
+    labels.forEach((label, index) => {
+      const point = points[index];
+      if (!point) return;
+      context.fillText(String(label), point.x, height - 6);
+    });
+
+    context.strokeStyle = theme.primary;
+    context.fillStyle = theme.primaryFill;
+    context.lineWidth = 3;
+    context.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) {
+        context.moveTo(point.x, point.yVirality);
       } else {
-        liveBits.push("Awaiting the first live event");
+        context.lineTo(point.x, point.yVirality);
       }
-      intelLiveText.textContent = liveBits.join(" � ");
+    });
+    if (points.length) {
+      context.lineTo(points[points.length - 1].x, paddingY + chartHeight);
+      context.lineTo(points[0].x, paddingY + chartHeight);
+      context.closePath();
+      context.fill();
     }
+    context.stroke();
+
+    context.strokeStyle = theme.accent;
+    context.lineWidth = 2;
+    context.setLineDash([6, 6]);
+    context.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) {
+        context.moveTo(point.x, point.yMomentum);
+      } else {
+        context.lineTo(point.x, point.yMomentum);
+      }
+    });
+    context.stroke();
+    context.setLineDash([]);
+
+    points.forEach((point) => {
+      context.fillStyle = theme.primary;
+      context.beginPath();
+      context.arc(point.x, point.yVirality, 3.5, 0, Math.PI * 2);
+      context.fill();
+
+      context.fillStyle = theme.accent;
+      context.beginPath();
+      context.arc(point.x, point.yMomentum, 3, 0, Math.PI * 2);
+      context.fill();
+    });
+
+    return true;
+  }
+
+  function getDashboardPulseDataset(items) {
+    const trends = getTrendSortByVirality(Array.isArray(items) ? items : []).slice(0, 8);
+    if (trends.length) {
+      return {
+        labels: trends.map((trend) => {
+          const title = trend.title || trend.name || trend.keyword || "Trend";
+          return title.length > 18 ? `${title.slice(0, 18).trim()}...` : title;
+        }),
+        virality: trends.map((trend) => safeNumber(trend.virality_score)),
+        momentum: trends.map((trend) => currentTrendMomentumScore(trend)),
+        source: "real",
+      };
+    }
+
+    return getDashboardFallbackPulseDataset();
+  }
+
+  function renderDashboardPulseChart(items) {
+    debugLog("Dashboard pulse init", {
+      canvasReady: Boolean(dashboardPulseChartCanvas),
+      chartLibraryLoaded: Boolean(window.Chart),
+      itemCount: Array.isArray(items) ? items.length : 0,
+    });
+    if (!dashboardPulseChartCanvas) {
+      setDashboardPulseStatus("Trend pulse canvas is missing.", "error");
+      return;
+    }
+    const dataset = getDashboardPulseDataset(items);
+    const hasRealData = dataset.source === "real";
+    debugLog("Dashboard pulse data", {
+      source: dataset.source,
+      labels: dataset.labels,
+      virality: dataset.virality,
+      momentum: dataset.momentum,
+    });
+    setDashboardPulseStatus(hasRealData ? "Live trend data" : "Showing fallback sample data");
+    destroyDashboardPulseChart();
+
+    const theme = buildChartTheme();
+    try {
+      if (!window.Chart) {
+        const rendered = drawFallbackDashboardPulseChart(dashboardPulseChartCanvas, dataset, theme);
+        setDashboardPulseStatus(
+          rendered ? "Chart library unavailable. Showing fallback canvas." : "Chart library is not loaded.",
+          rendered ? "fallback" : "error"
+        );
+        return;
+      }
+
+      window.visualAnalytics.dashboardPulse = new window.Chart(dashboardPulseChartCanvas, {
+        type: "line",
+        data: {
+          labels: dataset.labels,
+          datasets: [
+            {
+              label: "Virality",
+              data: dataset.virality,
+              borderColor: theme.primary,
+              backgroundColor: theme.primaryFill,
+              fill: true,
+              tension: 0.36,
+              pointRadius: 3,
+              borderWidth: 2,
+            },
+            {
+              label: "Momentum",
+              data: dataset.momentum,
+              borderColor: theme.accent,
+              backgroundColor: "transparent",
+              fill: false,
+              tension: 0.36,
+              pointRadius: 3,
+              borderDash: [6, 6],
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: {
+                color: theme.labels,
+                usePointStyle: true,
+                boxWidth: 10,
+              },
+            },
+            tooltip: {
+              backgroundColor: "rgba(15, 23, 42, 0.96)",
+              titleColor: "#fff",
+              bodyColor: "#f8fafc",
+              borderColor: "rgba(255, 255, 255, 0.12)",
+              borderWidth: 1,
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: theme.ticks },
+              grid: { color: "rgba(255, 255, 255, 0.04)" },
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax: 100,
+              ticks: { color: theme.ticks },
+              grid: { color: theme.grid },
+            },
+          },
+        },
+      });
+      setDashboardPulseStatus(hasRealData ? "Live trend data" : "Showing fallback sample data", hasRealData ? "real" : "fallback");
+      window.requestAnimationFrame(() => {
+        if (window.visualAnalytics.dashboardPulse?.resize) {
+          window.visualAnalytics.dashboardPulse.resize();
+        }
+      });
+    } catch (error) {
+      console.error("Trend pulse chart failed to render", error);
+      const rendered = drawFallbackDashboardPulseChart(dashboardPulseChartCanvas, dataset, theme);
+      setDashboardPulseStatus(
+        rendered ? "Chart render failed. Showing fallback canvas." : "Trend pulse chart failed to render.",
+        rendered ? "fallback" : "error"
+      );
+    }
+  }
+
+  function renderDashboardOpportunities(items) {
+    if (!dashboardOpportunitiesList) return;
+    const hasRealItems = Array.isArray(items) && items.length > 0;
+    const topItems = hasRealItems
+      ? getTrendSortByOpportunity(items).slice(0, 3)
+      : getDashboardFallbackOpportunityTrends();
+
+    dashboardOpportunitiesList.innerHTML = topItems
+      .map((trend) => {
+        const title = trend.title || trend.name || "Opportunity signal";
+        const score = safeNumber(trend.opportunity_score || trend.virality_score);
+        const status = trend.prediction_label || (score >= 75 ? "Growing" : "Watching");
+        const actionId = escapeHtml(getTrendSignalKey(trend) || title);
+        return `
+          <article class="dashboard-opportunity-card">
+            <div class="dashboard-opportunity-card__top">
+              <div>
+                <span class="dashboard-opportunity-card__eyebrow">Opportunity ${escapeHtml(score.toFixed(0))}%</span>
+                <h4>${escapeHtml(title)}</h4>
+              </div>
+              <span class="trend-badge trend-badge--mode">${escapeHtml(status)}</span>
+            </div>
+            <p class="dashboard-opportunity-card__summary">${escapeHtml(String(trend.summary || trend.description || "Actionable content opportunity.").slice(0, 140))}</p>
+            <div class="dashboard-opportunity-card__footer">
+              <span>Virality ${escapeHtml(safeNumber(trend.virality_score).toFixed(0))}%</span>
+              <span>Risk ${escapeHtml(safeNumber(trend.risk_score).toFixed(0))}%</span>
+              <button class="button secondary trend-action-btn" type="button" data-open-opportunity="${actionId}">Analyze</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+
+    dashboardOpportunitiesList.querySelectorAll("[data-open-opportunity]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.getAttribute("data-open-opportunity");
+        const target = topItems.find((trend) => String(getTrendSignalKey(trend) || trend.title || trend.name || "") === key);
+        if (target) openTrendDetailsModal(target);
+      });
+    });
+  }
+
+  function renderDashboardRecommendation(items) {
+    if (!dashboardRecommendationTitle || !dashboardRecommendationText) return;
+    const recommendation = Array.isArray(items) && items.length ? getDashboardRecommendation(items) : getDashboardFallbackRecommendation();
+    dashboardRecommendationTitle.textContent = recommendation.summary;
+    dashboardRecommendationText.textContent = recommendation.action;
+  }
+
+  function renderDashboardLiveFeed(items, previousItems = []) {
+    if (!dashboardLiveFeed) return;
+    const isFallback = !(Array.isArray(items) && items.length);
+    const currentItems = isFallback ? getDashboardFallbackLiveFeed() : getTrendSortByVirality(items).slice(0, 5);
+    const previousIndex = getTrendSnapshotIndex(buildTrendSignalSnapshot(previousItems));
+
+    dashboardLiveFeed.innerHTML = currentItems
+      .map((trend) => {
+        if (isFallback) {
+          return `
+            <article class="dashboard-live-feed__item is-up">
+              <div>
+                <strong>${escapeHtml(trend.title || "Trend")}</strong>
+                <p>${escapeHtml(trend.platform || "trend signal")} · +${escapeHtml(safeNumber(trend.virality_score).toFixed(0))}%</p>
+              </div>
+              <span class="dashboard-live-feed__delta">+${escapeHtml(safeNumber(trend.momentum_score).toFixed(0))}% momentum</span>
+            </article>
+          `;
+        }
+        const previous = previousIndex.get(getTrendSignalKey(trend));
+        const viralityDelta = formatTrendDelta(trend.virality_score, previous?.virality);
+        const momentumDelta = formatTrendDelta(currentTrendMomentumScore(trend), previous?.momentum);
+        return `
+          <article class="dashboard-live-feed__item ${viralityDelta.className}">
+            <div>
+              <strong>${escapeHtml(trend.title || trend.name || trend.keyword || "Trend")}</strong>
+              <p>${escapeHtml(trend.platform || trend.source_label || "unknown")} · ${escapeHtml(viralityDelta.label)} virality</p>
+            </div>
+            <span class="dashboard-live-feed__delta">${escapeHtml(momentumDelta.label)}</span>
+          </article>
+        `;
+      })
+      .join("");
+  }
+
+  function renderDashboardInsights(items, options = {}) {
+    try {
+      const { trends, isFallback } = getDashboardIntelligenceItems(Array.isArray(items) ? items : []);
+      const total = trends.length;
+      const highViralCount = trends.filter((trend) => safeNumber(trend.virality_score) >= 75).length;
+      const opportunities = trends.filter((trend) => safeNumber(trend.opportunity_score) >= 75).length;
+
+      if (dashboardGreetingTitle) dashboardGreetingTitle.textContent = "Modern Trend Intelligence Center";
+      if (dashboardGreetingMeta) {
+        dashboardGreetingMeta.textContent = isFallback
+          ? "Sample intelligence loaded while live trend data refreshes."
+          : `${getDashboardModeLabel()} • ${total} Active Trends`;
+      }
+      if (dashboardModePill) dashboardModePill.textContent = getDashboardModeLabel();
+      if (dashboardActivePill) dashboardActivePill.textContent = `${total} Active Trends`;
+      if (dashboardTrendCountPill) dashboardTrendCountPill.textContent = `🔥 ${total} Trends`;
+      if (dashboardHighViralPill) dashboardHighViralPill.textContent = `📈 ${highViralCount} High Viral`;
+      if (dashboardOpportunityPill) dashboardOpportunityPill.textContent = `🎯 ${opportunities} Opportunities`;
+
+      renderDashboardPulseChart(options.pulseFallback ? [] : (isFallback ? [] : trends));
+      renderDashboardOpportunities(trends);
+      renderDashboardRecommendation(isFallback ? [] : trends);
+      renderDashboardLiveFeed(isFallback ? [] : trends, state.dashboardAllTrendsSnapshot);
+      state.dashboardAllTrendsSnapshot = isFallback ? [] : buildTrendSignalSnapshot(trends);
+    } catch (error) {
+      console.error("renderDashboardInsights failed", error);
+      renderDashboardPulseChart([]);
+      renderDashboardOpportunities(getDashboardFallbackTrends());
+      renderDashboardRecommendation([]);
+      renderDashboardLiveFeed([]);
+    }
+  }
+
+  function renderIntelligencePanel(items = null, options = {}) {
+    const trends = Array.isArray(items)
+      ? items
+      : (state.filteredTrends.length ? state.filteredTrends : state.allTrends);
+    renderDashboardInsights(trends, options);
   }
 
   function renderCurrentTrends(payload) {
@@ -834,10 +1403,30 @@ function setupDashboard(root) {
     const keywordItems = Array.isArray(payload?.trend_keywords) && payload.trend_keywords.length ? payload.trend_keywords : [];
     const trendItems = Array.isArray(payload?.items) ? payload.items : [];
     const items = keywordItems.length ? keywordItems : trendItems;
+    const fallbackItems = [
+      { keyword: "AI video editing workflows", count: 94, source_label: "Sample" },
+      { keyword: "AI agents for students", count: 89, source_label: "Sample" },
+      { keyword: "Prompt engineering tools", count: 84, source_label: "Sample" },
+    ];
+    const displayItems = items.length ? items : fallbackItems;
     state.currentTrends = trendItems.length ? trendItems : items;
     state.ws.currentTrendSnapshot = payload || null;
     const regionLabel = payload?.region_label || payload?.selected_region || payload?.region || trendRegion?.value || "India";
     window.selectedRegion = regionLabel;
+    if (trendBoardTitle) {
+      trendBoardTitle.textContent = `Trending Now${regionLabel ? ` for ${regionLabel}` : ""}`;
+    }
+    if (trendBoardCopy) {
+      trendBoardCopy.textContent = items.length
+        ? "Live trend keywords, sources, and signal density for the selected mode."
+        : "Sample trend intelligence is shown while live data loads.";
+    }
+    if (trendModeNotice) {
+      trendModeNotice.hidden = Boolean(items.length);
+      trendModeNotice.textContent = items.length
+        ? ""
+        : "No live trend keywords returned yet. Showing sample trend intelligence.";
+    }
     const sourceLabels = Array.isArray(payload?.source_labels) && payload.source_labels.length
       ? payload.source_labels
       : Array.isArray(payload?.items)
@@ -854,13 +1443,10 @@ function setupDashboard(root) {
       trendRegionSummary.textContent = `Region: ${regionLabel}${sourceLabels.length ? ` � Sources: ${sourceLabels.join(", ")}` : ""}`;
     }
 
-    if (!items.length) {
-      currentTrendsList.innerHTML = `<span class="trend-tag trend-tag--empty">No current trend keywords available.</span>`;
-      return;
-    }
-
-    const sourceTags = sourceLabels.map((label) => `<span class="trend-tag trend-tag--source">${escapeHtml(label)}</span>`);
-    const keywordTags = items
+    const sourceTags = sourceLabels.length
+      ? sourceLabels.map((label) => `<span class="trend-tag trend-tag--source">${escapeHtml(label)}</span>`)
+      : [`<span class="trend-tag trend-tag--source">Sample</span>`];
+    const keywordTags = displayItems
       .map((item) => {
         const keyword = item.keyword || item.title || item.name || "trend";
         const count = item.count ?? item.trend_score ?? "";
@@ -872,7 +1458,7 @@ function setupDashboard(root) {
 
   function renderThumbnailAnalysis(result) {
     if (!thumbnailAnalysis || !thumbnailAnalysisContent) return;
-    const data = result || state.ws.currentThumbnailResult;
+    const data = hasUploadedThumbnail() ? (result || state.ws.currentThumbnailResult) : null;
     if (!data) {
       thumbnailAnalysis.hidden = true;
       thumbnailAnalysisContent.innerHTML = "";
@@ -938,7 +1524,9 @@ function setupDashboard(root) {
   async function handleThumbnailUpload(event) {
     const file = event.target?.files?.[0];
     if (!file) {
+      state.ws.currentThumbnailFile = null;
       state.ws.currentThumbnailResult = null;
+      window.latestThumbnailResult = null;
       renderThumbnailAnalysis(null);
       setThumbnailPreview(null, null);
       if (thumbnailUploadStatus) {
@@ -951,16 +1539,21 @@ function setupDashboard(root) {
     if (!allowedTypes.includes(file.type)) {
       showToast("Please upload a JPG, PNG, WEBP, GIF, or BMP image.");
       if (thumbnailUpload) thumbnailUpload.value = "";
+      state.ws.currentThumbnailFile = null;
       return;
     }
 
-    console.log("Thumbnail file selected", { name: file.name, type: file.type, size: file.size });
+    debugLog("Thumbnail file selected", { name: file.name, type: file.type, size: file.size });
+    state.ws.currentThumbnailFile = file;
+    state.ws.currentThumbnailResult = null;
+    window.latestThumbnailResult = null;
 
     if (state.ws.currentThumbnailPreviewUrl) {
       window.URL.revokeObjectURL(state.ws.currentThumbnailPreviewUrl);
     }
     state.ws.currentThumbnailPreviewUrl = window.URL.createObjectURL(file);
     setThumbnailPreview(file, state.ws.currentThumbnailPreviewUrl);
+    renderThumbnailAnalysis(null);
     if (thumbnailUploadStatus) {
       thumbnailUploadStatus.textContent = `Previewing ${file.name}. Analyzing image quality...`;
     }
@@ -975,7 +1568,7 @@ function setupDashboard(root) {
       });
       if (handleAuthRedirect(response)) return;
       const data = await parseJsonResponse(response);
-      console.log("Thumbnail analysis response", data);
+      debugLog("Thumbnail analysis response", data);
       if (!response.ok) throw new Error(data?.detail || data?.error || `Request failed (${response.status})`);
       if (!data?.success) throw new Error(data?.detail || data?.error || "Thumbnail analysis failed");
 
@@ -987,7 +1580,6 @@ function setupDashboard(root) {
       }
       showToast(`Thumbnail analyzed with a score of ${safeNumber(data.thumbnail_score).toFixed(0)}%.`);
       if (window.latestAnalysis || state.ws.currentCreatorPayload) {
-        refreshLinkedInDraft({ silent: true });
         refreshCreatorStrategy({ silent: true });
       }
     } catch (error) {
@@ -996,6 +1588,7 @@ function setupDashboard(root) {
       if (thumbnailUploadStatus) {
         thumbnailUploadStatus.textContent = "Thumbnail analysis failed. Please try again.";
       }
+      state.ws.currentThumbnailFile = null;
       state.ws.currentThumbnailResult = null;
       window.latestThumbnailResult = null;
       renderThumbnailAnalysis(null);
@@ -1059,14 +1652,16 @@ function setupDashboard(root) {
 
   function buildLatestAnalysisPayload() {
     const analysis = normalizeAnalysisPayload(window.latestAnalysis || state.ws.currentCreatorPayload || {});
+    const hasThumbnail = hasUploadedThumbnail();
+    const shouldGenerateLinkedIn = shouldGenerateLinkedInPost(analysis);
     return {
       ...analysis,
       latest_analysis_result: analysis,
-      thumbnail_result: state.ws.currentThumbnailResult || analysis.thumbnail_result || analysis.thumbnail_analysis || null,
-      thumbnail_analysis: state.ws.currentThumbnailResult || analysis.thumbnail_result || analysis.thumbnail_analysis || null,
+      thumbnail_result: hasThumbnail ? (state.ws.currentThumbnailResult || analysis.thumbnail_result || analysis.thumbnail_analysis || null) : null,
+      thumbnail_analysis: hasThumbnail ? (state.ws.currentThumbnailResult || analysis.thumbnail_result || analysis.thumbnail_analysis || null) : null,
       competitor_analysis: window.latestCompetitorAnalysis || analysis.competitor_analysis || null,
-      linkedin_post: state.ws.currentLinkedInPost || analysis.linkedin_post || "",
-      linkedin_post_text: state.ws.currentLinkedInPost || analysis.linkedin_post_text || "",
+      linkedin_post: shouldGenerateLinkedIn ? (state.ws.currentLinkedInPost || analysis.linkedin_post || "") : "",
+      linkedin_post_text: shouldGenerateLinkedIn ? (state.ws.currentLinkedInPost || analysis.linkedin_post_text || "") : "",
       platform: creatorPlatform?.value || analysis.current_request?.platform || analysis.platform || "linkedin",
       content_type: creatorContentType?.value || analysis.current_request?.content_type || analysis.content_type || "",
       audience: creatorAudience?.value || analysis.current_request?.audience || analysis.audience || "",
@@ -1083,6 +1678,7 @@ function setupDashboard(root) {
     const competitor = window.latestCompetitorAnalysis || analysis.competitor_analysis || null;
     const trendSnapshot = state.ws.currentTrendSnapshot || {};
     const trends = Array.isArray(state.currentTrends) && state.currentTrends.length ? state.currentTrends : Array.isArray(trendSnapshot.items) ? trendSnapshot.items : [];
+    const thumbnailResult = hasUploadedThumbnail() ? (state.ws.currentThumbnailResult || analysis.thumbnail_result || analysis.thumbnail_analysis || null) : null;
     return {
       platform: creatorPlatform?.value || analysis.current_request?.platform || analysis.platform || "linkedin",
       content_type: creatorContentType?.value || analysis.current_request?.content_type || analysis.content_type || "",
@@ -1096,7 +1692,7 @@ function setupDashboard(root) {
       latest_analysis_result: analysis,
       competitor_analysis: competitor,
       trends,
-      thumbnail_result: state.ws.currentThumbnailResult || analysis.thumbnail_result || analysis.thumbnail_analysis || null,
+      thumbnail_result: thumbnailResult,
     };
   }
 
@@ -1136,7 +1732,7 @@ function setupDashboard(root) {
       });
       if (handleAuthRedirect(response)) return "";
       const data = await parseJsonResponse(response);
-      console.log("Creator strategy response", data);
+      debugLog("Creator strategy response", data);
       if (!response.ok) {
         const errorText = typeof data === "string" ? data : data?.detail || data?.error || `Request failed (${response.status})`;
         throw new Error(errorText);
@@ -1373,7 +1969,7 @@ function setupDashboard(root) {
 
     try {
       const payload = buildLatestAnalysisPayload();
-      console.log("Exporting PDF with payload", payload);
+      debugLog("Exporting PDF with payload", payload);
       const body = JSON.stringify(payload);
       let response = await fetch("/api/export-pdf", {
         method: "POST",
@@ -1556,7 +2152,7 @@ function setupDashboard(root) {
 
   function openAssistantSidebar() {
     if (!assistantSidebar) return;
-    console.log("AI assistant sidebar opened");
+    debugLog("AI assistant sidebar opened");
     assistantSidebar.classList.remove("hidden");
     assistantSidebar.classList.add("is-open");
     assistantSidebar.setAttribute("aria-hidden", "false");
@@ -1570,7 +2166,7 @@ function setupDashboard(root) {
 
   function closeAssistantSidebar() {
     if (!assistantSidebar) return;
-    console.log("AI assistant sidebar closed");
+    debugLog("AI assistant sidebar closed");
     assistantSidebar.classList.remove("is-open");
     assistantSidebar.classList.add("hidden");
     assistantSidebar.setAttribute("aria-hidden", "true");
@@ -1663,7 +2259,7 @@ function setupDashboard(root) {
       return;
     }
 
-    console.log("AI assistant question submitted", message);
+    debugLog("AI assistant question submitted", message);
 
     openAssistantSidebar();
     appendAssistantMessage("user", message);
@@ -1695,7 +2291,7 @@ function setupDashboard(root) {
       });
       if (handleAuthRedirect(response)) return;
       const data = await parseJsonResponse(response);
-      console.log("AI assistant response", data);
+      debugLog("AI assistant response", data);
       if (!response.ok) {
         const errorText = typeof data === "string" ? data : data?.detail || data?.error || `Request failed (${response.status})`;
         throw new Error(errorText);
@@ -1845,13 +2441,6 @@ function setupDashboard(root) {
     }, 3500);
   }
 
-  function updateEmptyState(items) {
-    if (!emptyState || !grid) return;
-    const isEmpty = items.length === 0;
-    emptyState.style.display = isEmpty ? "grid" : "none";
-    grid.style.display = isEmpty ? "none" : "grid";
-  }
-
   function applyFilters() {
     const search = state.filters.search.toLowerCase().trim();
     const platform = state.filters.platform;
@@ -1912,10 +2501,35 @@ function setupDashboard(root) {
     renderTrends(items);
   }
 
-  function renderStats(items) {
+  function renderStats(items, options = {}) {
     calculateStats(items);
     calculateForecastStats(items);
-    renderIntelligencePanel();
+    renderIntelligencePanel(items, options);
+  }
+
+  function normalizeTrendArray(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.trends)) return payload.trends;
+    return [];
+  }
+
+  function renderDashboardFromTrends(trends, { persist = true, pulseFallback = false } = {}) {
+    const items = normalizeTrendArray(trends);
+    const sourceItems = items.length ? items : getDashboardFallbackTrends();
+    if (persist) {
+      state.allTrends = items;
+      state.filteredTrends = items;
+    }
+    renderStats(sourceItems, { pulseFallback });
+    renderTrends(sourceItems);
+    updateLiveMeta();
+  }
+
+  function renderFallbackDashboard() {
+    state.allTrends = [];
+    state.filteredTrends = [];
+    renderDashboardFromTrends(getDashboardFallbackTrends(), { persist: false, pulseFallback: true });
   }
 
   function renderAlerts(alerts) {
@@ -1968,11 +2582,10 @@ function setupDashboard(root) {
   function renderTrends(items) {
     if (!grid) return;
     grid.innerHTML = "";
-    updateEmptyState(items);
+    const trendsToRender = Array.isArray(items) && items.length ? items : getDashboardFallbackTrends();
+    const isFallback = !(Array.isArray(items) && items.length);
 
-    if (!items.length) return;
-
-    items.forEach((trend) => {
+    trendsToRender.forEach((trend) => {
       const title = trend.title || trend.name || "Untitled trend";
       const platform = trend.platform || "unknown";
       const sourceLabel = trend.source_label || platform.toUpperCase();
@@ -2006,6 +2619,7 @@ function setupDashboard(root) {
             <h3 class="trend-title">${escapeHtml(title)}</h3>
           </div>
           <div class="trend-badge-group">
+            ${isFallback ? '<span class="trend-badge trend-badge--mode">Sample</span>' : ""}
             <span class="trend-badge source-${badgeKey(sourceLabel)}">${escapeHtml(sourceLabel)}</span>
             <span class="trend-badge sentiment-${badgeKey(sentimentLabel)}">${escapeHtml(sentimentLabel)}</span>
             <span class="trend-badge virality-${badgeKey(viralityLabel)}">${escapeHtml(viralityLabel)}</span>
@@ -2097,24 +2711,40 @@ function setupDashboard(root) {
 
   async function loadDashboard() {
     setLoading(true);
-    setStatus("Loading stored trends...");
+    showDashboardStatus("Loading stored trends...", "loading");
     try {
       const url = new URL(apiUrl, window.location.origin);
       url.searchParams.set("region", getSelectedTrendRegion());
       const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
-      if (handleAuthRedirect(response)) return;
+      debugLog("loadDashboard response.status", response.status);
+      if (response.status === 401 || response.status === 403) {
+        showDashboardStatus("Session expired. Please login again.", "warning");
+        renderFallbackDashboard();
+        return;
+      }
       if (!response.ok) throw new Error(`Failed to load trends (${response.status})`);
-      const data = await response.json();
-      state.allTrends = Array.isArray(data.items) ? data.items : [];
-      applyFilters();
-      updateLiveMeta();
-      setStatus(`Loaded ${state.allTrends.length} stored trends for ${getSelectedTrendRegion()}.`);
+
+      const rawText = await response.text();
+      let data = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (parseError) {
+        console.error("Failed to parse /api/trends response", parseError, rawText);
+        throw parseError;
+      }
+
+      const liveTrends = normalizeTrendArray(data?.items ?? data?.trends ?? data);
+      if (liveTrends.length) {
+        showDashboardStatus(`Loaded ${liveTrends.length} stored trends for ${getSelectedTrendRegion()}.`, "success");
+        renderDashboardFromTrends(liveTrends);
+      } else {
+        showDashboardStatus(`No live trends found for ${getSelectedTrendRegion()}.`, "warning");
+        renderFallbackDashboard();
+      }
     } catch (error) {
       console.error(error);
-      state.allTrends = [];
-      applyFilters();
-      updateLiveMeta();
-      setStatus("Could not load trends. Please try again.");
+      showDashboardStatus("Using demo intelligence data.", "warning");
+      renderFallbackDashboard();
     } finally {
       setLoading(false);
     }
@@ -2164,7 +2794,7 @@ function setupDashboard(root) {
 
   window.trackPublishedPost = async function () {
     window.__trackPostClickStamp = Date.now();
-    console.log("Track Performance clicked");
+    debugLog("Track Performance clicked");
     const postUrl = String(performanceUrlInput?.value || "").trim();
     const likesValue = String(manualLikesInput?.value || "").trim();
     const commentsValue = String(manualCommentsInput?.value || "").trim();
@@ -2196,7 +2826,7 @@ function setupDashboard(root) {
     }
 
     try {
-      console.log("Tracking post URL:", postUrl);
+      debugLog("Tracking post URL:", postUrl);
       const response = await fetch("/api/track-post", {
         method: "POST",
         headers: {
@@ -2216,7 +2846,7 @@ function setupDashboard(root) {
         }),
       });
       const data = await parseJsonResponse(response);
-      console.log("Track post response:", data);
+      debugLog("Track post response:", data);
       if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`);
       if (!data?.success) throw new Error(data?.error || "Post performance tracking failed");
       renderPostPerformance(data);
@@ -2414,8 +3044,10 @@ function setupDashboard(root) {
     const ragAnalysis = normalized.rag_analysis || {};
     const similarTrends = Array.isArray(normalized.similar_trends) ? normalized.similar_trends : [];
     const warnings = Array.isArray(normalized.warnings) ? normalized.warnings : [];
-    const thumbnailResult = normalized.thumbnail_result || normalized.thumbnail_analysis || state.ws.currentThumbnailResult || null;
-    const thumbnailCards = thumbnailResult
+    const showLinkedInPost = shouldGenerateLinkedInPost(normalized);
+    const showThumbnail = hasUploadedThumbnail();
+    const thumbnailResult = showThumbnail ? (normalized.thumbnail_result || normalized.thumbnail_analysis || state.ws.currentThumbnailResult || null) : null;
+    const thumbnailCards = showThumbnail && thumbnailResult
       ? [
           creatorRecommendationCard("Thumbnail Score", `${safeNumber(thumbnailResult.thumbnail_score).toFixed(0)}%`),
           creatorRecommendationCard("Brightness", thumbnailResult.brightness ?? "n/a"),
@@ -2493,15 +3125,21 @@ function setupDashboard(root) {
         ${creatorMetric("Trend Match", payload.trend_match_score ?? analysis.trend_match_score, "%")}
       </div>
 
-      <div class="creator-linkedin">
-        <div class="creator-results__header">
-          <div>
-            <p class="eyebrow">LinkedIn Post</p>
-            <h4>Review before copying</h4>
-          </div>
-        </div>
-        <textarea id="linkedinPostOutput" class="creator-linkedin__output" placeholder="Generate a LinkedIn post from this analysis.">${escapeHtml(state.ws.currentLinkedInPost || "")}</textarea>
-      </div>
+      ${
+        showLinkedInPost
+          ? `
+            <div class="creator-linkedin">
+              <div class="creator-results__header">
+                <div>
+                  <p class="eyebrow">LinkedIn Post</p>
+                  <h4>Review before copying</h4>
+                </div>
+              </div>
+              <textarea id="linkedinPostOutput" class="creator-linkedin__output" placeholder="Generate a LinkedIn post from this analysis.">${escapeHtml(state.ws.currentLinkedInPost || "")}</textarea>
+            </div>
+          `
+          : ""
+      }
 
       ${
         thumbnailCards
@@ -2609,7 +3247,7 @@ function setupDashboard(root) {
   }
 
   function getForecastModeConfig(mode) {
-    const normalized = String(mode || "Global").trim().toLowerCase();
+    const normalized = String(mode || getSelectedTrendMode() || "Global").trim().toLowerCase();
     const configs = {
       global: {
         label: "Global",
@@ -3873,50 +4511,69 @@ function setupDashboard(root) {
   }
 
   function renderAnalysisResult(data) {
-    const normalized = normalizeAnalysisPayload(data);
-    window.latestAnalysis = normalized;
-    console.log("latestAnalysis saved", window.latestAnalysis);
-    console.log("Rendering analysis result", normalized);
+    try {
+      const normalized = normalizeAnalysisPayload(data);
+      const shouldGenerateLinkedIn = shouldGenerateLinkedInPost(normalized);
+      const hasThumbnail = hasUploadedThumbnail();
+      window.latestAnalysis = normalized;
+      debugLog("latestAnalysis saved", window.latestAnalysis);
+      debugLog("Rendering analysis result", normalized);
 
-    state.ws.currentCreatorPayload = normalized;
-    state.ws.currentThumbnailResult = normalized.thumbnail_result || normalized.thumbnail_analysis || state.ws.currentThumbnailResult || null;
-    window.latestThumbnailResult = state.ws.currentThumbnailResult;
+      state.ws.currentCreatorPayload = normalized;
+      state.ws.currentThumbnailResult = hasThumbnail ? (normalized.thumbnail_result || normalized.thumbnail_analysis || state.ws.currentThumbnailResult || null) : null;
+      window.latestThumbnailResult = state.ws.currentThumbnailResult;
 
-    if (creatorResultsEmpty) {
-      creatorResultsEmpty.hidden = true;
+      if (creatorResultsEmpty) {
+        creatorResultsEmpty.hidden = true;
+      }
+      if (creatorResultsContent) {
+        creatorResultsContent.hidden = false;
+        creatorResultsContent.innerHTML = renderCreatorAnalysis(normalized);
+      }
+
+      activateCreatorTab("optimization");
+      setAnalysisControlsEnabled(true);
+      updateViralityCharts(normalized);
+      updateEngagementForecast(normalized);
+      updateEngagementGrowthPrediction(normalized);
+      renderPlatformIntelligence(normalized);
+
+      if (normalized.trend_match_score !== undefined && normalized.trend_match_score !== null) {
+        updateTrendMatchDisplay(normalized.trend_match_score, "Trend match score updated from the latest creator analysis.");
+      }
+
+      if (shouldGenerateLinkedIn && state.ws.currentLinkedInPost) {
+        const output = document.getElementById("linkedinPostOutput") || document.getElementById("linkedinResult") || document.getElementById("linkedin-post-output");
+        window.generatedLinkedInPost = state.ws.currentLinkedInPost;
+        if (output) output.value = state.ws.currentLinkedInPost;
+      } else if (shouldGenerateLinkedIn && normalized.linkedin_post) {
+        state.ws.currentLinkedInPost = normalized.linkedin_post;
+        window.generatedLinkedInPost = normalized.linkedin_post;
+        const output = document.getElementById("linkedinPostOutput") || document.getElementById("linkedinResult") || document.getElementById("linkedin-post-output");
+        if (output) output.value = normalized.linkedin_post;
+      } else if (shouldGenerateLinkedIn) {
+        const draft = buildLinkedInPostDraft(normalized);
+        if (draft) {
+          applyLinkedInDraft(draft);
+        }
+      } else {
+        applyLinkedInDraft("");
+      }
+
+      renderThumbnailAnalysis(hasThumbnail ? state.ws.currentThumbnailResult : null);
+      renderIntelligencePanel();
+      refreshCreatorStrategy({ silent: true });
+    } catch (error) {
+      console.error("renderAnalysisResult failed", error);
+      if (creatorResultsEmpty) {
+        creatorResultsEmpty.hidden = false;
+      }
+      if (creatorResultsContent) {
+        creatorResultsContent.hidden = true;
+        creatorResultsContent.innerHTML = "";
+      }
+      renderIntelligencePanel([]);
     }
-    if (creatorResultsContent) {
-      creatorResultsContent.hidden = false;
-      creatorResultsContent.innerHTML = renderCreatorAnalysis(normalized);
-    }
-
-    activateCreatorTab("optimization");
-    setAnalysisControlsEnabled(true);
-    updateViralityCharts(normalized);
-    updateEngagementForecast(normalized);
-    updateEngagementGrowthPrediction(normalized);
-    renderPlatformIntelligence(normalized);
-
-    if (normalized.trend_match_score !== undefined && normalized.trend_match_score !== null) {
-      updateTrendMatchDisplay(normalized.trend_match_score, "Trend match score updated from the latest creator analysis.");
-    }
-
-    if (state.ws.currentLinkedInPost) {
-      const output = document.getElementById("linkedinPostOutput") || document.getElementById("linkedinResult") || document.getElementById("linkedin-post-output");
-      window.generatedLinkedInPost = state.ws.currentLinkedInPost;
-      if (output) output.value = state.ws.currentLinkedInPost;
-    } else if (normalized.linkedin_post) {
-      state.ws.currentLinkedInPost = normalized.linkedin_post;
-      window.generatedLinkedInPost = normalized.linkedin_post;
-      const output = document.getElementById("linkedinPostOutput") || document.getElementById("linkedinResult") || document.getElementById("linkedin-post-output");
-      if (output) output.value = normalized.linkedin_post;
-    } else {
-      refreshLinkedInDraft({ silent: true });
-    }
-
-    renderThumbnailAnalysis(state.ws.currentThumbnailResult);
-    renderIntelligencePanel();
-    refreshCreatorStrategy({ silent: true });
   }
 
   function showCreatorAnalysis(payload) {
@@ -3925,9 +4582,10 @@ function setupDashboard(root) {
 
   function clearCreatorAnalysis() {
     if (!creatorResultsEmpty || !creatorResultsContent) return;
-    console.log("Clearing dashboard analysis state");
+    debugLog("Clearing dashboard analysis state");
     state.ws.currentCreatorPayload = null;
     state.ws.currentLinkedInPost = null;
+    state.ws.requestedLinkedInGeneration = false;
     state.ws.currentStrategyPayload = null;
     state.ws.currentTrendSnapshot = null;
     window.latestAnalysis = null;
@@ -3935,6 +4593,7 @@ function setupDashboard(root) {
     window.latestCompetitorAnalysis = null;
     window.latestThumbnailResult = null;
     window.generatedLinkedInPost = "";
+    state.ws.currentThumbnailFile = null;
     destroyViralityCharts();
     if (window.visualAnalytics.forecast) {
       window.visualAnalytics.forecast.destroy();
@@ -4259,7 +4918,49 @@ function setupDashboard(root) {
     setStatus("Demo creator idea loaded. You can analyze it now.");
   }
 
+  function hasUploadedThumbnail() {
+    return Boolean(state.ws.currentThumbnailFile && String(state.ws.currentThumbnailFile.type || "").startsWith("image/"));
+  }
+
+  function shouldGenerateLinkedInPost(payload = {}) {
+    const request = payload.current_request || payload.request || {};
+    const platform = String(request.platform || payload.platform || creatorPlatform?.value || "").trim().toLowerCase();
+    return platform === "linkedin" || state.ws.requestedLinkedInGeneration === true;
+  }
+
+  function getSelectedCreatorMode() {
+    const activeButton = creatorModeButtons.find((button) => button.classList.contains("is-active"));
+    const rawMode = creatorForm?.dataset.creatorMode || activeButton?.dataset.creatorMode || "quick";
+    return rawMode === "full" ? "full" : "quick";
+  }
+
+  function syncCreatorModeUI(mode) {
+    if (!creatorForm) return;
+    const normalizedMode = mode === "full" ? "full" : "quick";
+    creatorForm.dataset.creatorMode = normalizedMode;
+    creatorModeButtons.forEach((button) => {
+      const isActive = button.dataset.creatorMode === normalizedMode;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+
+    if (creatorTitle) {
+      creatorTitle.placeholder =
+        normalizedMode === "quick"
+          ? "Paste a title, hook, or one-line content idea"
+          : "Example: 5 AI content ideas creators should post this week";
+    }
+    if (creatorAnalyzeBtn) {
+      creatorAnalyzeBtn.textContent = normalizedMode === "quick" ? "Quick Predict" : "Analyze Content";
+    }
+    if (creatorForm) {
+      creatorForm.setAttribute("aria-label", normalizedMode === "quick" ? "Quick Prediction form" : "Full Content Optimization form");
+    }
+  }
+
   function getCreatorPayload() {
+    const thumbnailResult = hasUploadedThumbnail() ? (state.ws.currentThumbnailResult || window.latestThumbnailResult || null) : null;
     return {
       platform: creatorPlatform?.value || "instagram",
       title: creatorTitle?.value?.trim() || "",
@@ -4270,7 +4971,8 @@ function setupDashboard(root) {
       audience: creatorAudience?.value || "General audience",
       trend_region: getSelectedTrendRegion(),
       region: getSelectedTrendRegion(),
-      thumbnail_result: state.ws.currentThumbnailResult || window.latestThumbnailResult || null,
+      thumbnail_result: thumbnailResult,
+      prediction_mode: getSelectedCreatorMode(),
     };
   }
 
@@ -4297,8 +4999,10 @@ function setupDashboard(root) {
 
   async function submitCreatorAnalysis(event) {
     event.preventDefault();
+    state.ws.requestedLinkedInGeneration = false;
+    syncCreatorModeUI(getSelectedCreatorMode());
     const payload = getCreatorPayload();
-    console.log("Creator analysis payload", payload);
+    debugLog("Creator analysis payload", payload);
 
     if (!payload.title) {
       setStatus("Please add a post title or idea before analyzing.");
@@ -4331,9 +5035,8 @@ function setupDashboard(root) {
       if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`);
       if (!data?.success) throw new Error(data?.error || "Analysis failed");
       window.latestAnalysis = data;
-      console.log("latestAnalysis saved", window.latestAnalysis);
+      debugLog("latestAnalysis saved", window.latestAnalysis);
       renderAnalysisResult(data);
-      refreshLinkedInDraft({ silent: true });
       updateTrendMatchDisplay(data.trend_match_score, "Trend match score updated from the latest creator analysis.");
       showToast(
         data.analysis?.virality_score >= 75
@@ -4506,6 +5209,18 @@ function setupDashboard(root) {
       });
     }
 
+    if (trendModeSelect) {
+      trendModeSelect.addEventListener("change", () => {
+        window.selectedTrendMode = getSelectedTrendMode();
+        state.forecastMode = getSelectedTrendMode();
+        syncForecastStudioUI(state.forecastMode);
+        renderIntelligencePanel(state.filteredTrends.length ? state.filteredTrends : state.allTrends);
+        if (window.latestAnalysis || state.ws.currentCreatorPayload) {
+          renderAnalysisResult(window.latestAnalysis || state.ws.currentCreatorPayload);
+        }
+      });
+    }
+
     if (platformFilter) {
       platformFilter.addEventListener("change", () => {
         state.filters.platform = platformFilter.value;
@@ -4554,7 +5269,7 @@ function setupDashboard(root) {
   if (trendRegion) {
     trendRegion.addEventListener("change", async () => {
       window.selectedRegion = getSelectedTrendRegion();
-      console.log("Region changed", window.selectedRegion);
+      debugLog("Region changed", window.selectedRegion);
       await loadCurrentTrends({ silent: false });
       await loadDashboard();
       if (window.latestAnalysis || state.ws.currentCreatorPayload) {
@@ -4592,7 +5307,15 @@ function setupDashboard(root) {
   }
 
   if (generateLinkedInBtn) {
-    generateLinkedInBtn.addEventListener("click", generateLinkedInPost);
+    generateLinkedInBtn.addEventListener("click", async () => {
+      state.ws.requestedLinkedInGeneration = true;
+      const draft = await generateLinkedInPost();
+      if (!draft) {
+        state.ws.requestedLinkedInGeneration = false;
+      } else if (window.latestAnalysis || state.ws.currentCreatorPayload) {
+        renderAnalysisResult(window.latestAnalysis || state.ws.currentCreatorPayload);
+      }
+    });
   }
 
   if (strategyBtn) {
@@ -4666,6 +5389,19 @@ function setupDashboard(root) {
     creatorDemoBtn.addEventListener("click", fillCreatorDemoIdea);
   }
 
+  if (creatorModeButtons.length) {
+    creatorModeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        syncCreatorModeUI(button.dataset.creatorMode || "quick");
+        setStatus(
+          button.dataset.creatorMode === "full"
+            ? "Full Content Optimization enabled."
+            : "Quick Prediction enabled."
+        );
+      });
+    });
+  }
+
   if (creatorForm) {
     creatorForm.addEventListener("submit", submitCreatorAnalysis);
   }
@@ -4679,7 +5415,7 @@ function setupDashboard(root) {
   }
 
   if (trackPostBtn) {
-    console.log("Track button found:", trackPostBtn);
+    debugLog("Track button found:", trackPostBtn);
   }
 
   if (thumbnailUpload) {
@@ -4840,16 +5576,25 @@ function setupDashboard(root) {
   });
 
   bindFilterEvents();
+  syncCreatorModeUI(getSelectedCreatorMode());
   renderPlatformIntelligence(null);
+  renderFallbackDashboard();
   loadDashboard();
   loadAlerts();
   loadPostPerformance();
   loadCurrentTrends({ silent: true });
   loadWorkspace();
   setAnalysisControlsEnabled(Boolean(window.latestAnalysis || state.ws.currentCreatorPayload));
-  renderThumbnailAnalysis(state.ws.currentThumbnailResult);
+  renderThumbnailAnalysis(hasUploadedThumbnail() ? state.ws.currentThumbnailResult : null);
   renderStrategyPanel(null);
   seedAssistantConversation();
+
+  window.addEventListener("load", () => {
+    const trends = state.filteredTrends.length ? state.filteredTrends : state.allTrends;
+    if (dashboardPulseChartCanvas) {
+      renderDashboardPulseChart(trends);
+    }
+  });
 }
 
   function renderTrendDetails(detail) {
@@ -5020,8 +5765,3 @@ function renderContentIdea(contentIdea) {
     </div>
   `;
 }
-
-
-
-
-
