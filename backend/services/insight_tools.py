@@ -12,7 +12,6 @@ from xml.etree import ElementTree as ET
 
 import requests
 from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
-from nltk.corpus import stopwords as nltk_stopwords
 
 STOPWORDS = {
     "a",
@@ -502,7 +501,6 @@ class InsightTools:
         ]
         keywords.sort(key=lambda item: (-item["count"], item["keyword"]))
         final_keywords = keywords[:limit]
-        print("FINAL CLEAN KEYWORDS:", final_keywords)
         return final_keywords
 
     def extract_keywords(self, text: str) -> list[str]:
@@ -650,30 +648,6 @@ class InsightTools:
         }
         return aliases.get(value, value if value in REGION_PROFILES else "global")
 
-    def _region_profile(self, region: str) -> dict[str, Any]:
-        normalized = self._normalize_region_key(region)
-        return REGION_PROFILES.get(normalized, REGION_PROFILES["global"]) | {"key": normalized}
-
-    def _normalize_region_key(self, region: str | None) -> str:
-        if not region:
-            return "global"
-        value = str(region).strip().lower()
-        aliases = {
-            "in": "india",
-            "india": "india",
-            "tamilnadu": "tamil nadu",
-            "tamil nadu": "tamil nadu",
-            "tn": "tamil nadu",
-            "chennai": "chennai",
-            "trichy": "trichy",
-            "tiruchirappalli": "trichy",
-            "global": "global",
-            "world": "global",
-            "usa": "global",
-            "us": "global",
-        }
-        return aliases.get(value, value if value in REGION_PROFILES else "global")
-
     def _build_region_queries(self, profile: dict[str, Any], niche: str | None = None, platform: str | None = None) -> list[str]:
         queries = [str(query).strip() for query in profile.get("queries", []) if str(query).strip()]
         niche_text = str(niche or "").strip()
@@ -710,9 +684,5 @@ class InsightTools:
 
     def _load_stopwords(self) -> set[str]:
         stopword_set = set(STOPWORDS)
-        try:
-            stopword_set.update(nltk_stopwords.words("english"))
-        except Exception:
-            pass
         stopword_set.update(CUSTOM_STOPWORDS)
         return {word.lower() for word in stopword_set}

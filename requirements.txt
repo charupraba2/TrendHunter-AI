@@ -1,26 +1,27 @@
-fastapi
-uvicorn[standard]
-websockets
-jinja2
-python-dotenv
-sqlalchemy
-pydantic
-scikit-learn
-numpy
-pandas
-requests
-praw
-pytrends
-google-generativeai
-google-api-python-client
-openai
-newsapi-python
-joblib
-httpx
-vaderSentiment
-passlib[bcrypt]
-python-jose[cryptography]
-python-multipart
-reportlab
-beautifulsoup4
-nltk
+# Core runtime dependencies for TrendHunter AI
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+Jinja2==3.1.5
+python-dotenv==1.0.1
+sqlalchemy==2.0.36
+pydantic==2.10.4
+requests==2.32.3
+beautifulsoup4==4.12.3
+reportlab==4.2.5
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.20
+google-generativeai==0.8.3
+
+# Optional integrations. Install these only if you need the live external services.
+# They are intentionally excluded from the Docker image to keep builds smaller and more reliable.
+# openai==1.59.7
+# google-api-python-client==2.153.0
+# newsapi-python==0.2.7
+# praw==7.8.1
+# pytrends==4.9.2
+# vaderSentiment==3.3.2
+# numpy==1.26.4
+# pandas==2.2.3
+# scikit-learn==1.5.2
+# joblib==1.4.2
