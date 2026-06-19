@@ -28,7 +28,7 @@ def _require_login(request: Request):
 def landing_page(request: Request):
     return templates.TemplateResponse(
         request,
-        "landing.html",
+        "home.html",
         {
             "page_title": "TrendHunter AI",
             "current_user": getattr(request.state, "current_user", None),
@@ -43,9 +43,45 @@ def dashboard_page(request: Request):
         return redirect
     return templates.TemplateResponse(
         request,
-        "dashboard.html",
+        "trend_workspace.html",
         {
-            "page_title": "Creator Intelligence Platform",
+            "page_title": "Trend Intelligence Workspace",
+            "workspace": "trend",
+            "default_dashboard_tab": "dashboard",
+            "current_user": getattr(request.state, "current_user", None),
+        },
+    )
+
+
+@router.get("/trend-intelligence", response_class=HTMLResponse)
+def trend_intelligence_page(request: Request):
+    redirect = _require_login(request)
+    if redirect is not None:
+        return redirect
+    return templates.TemplateResponse(
+        request,
+        "trend_workspace.html",
+        {
+            "page_title": "Trend Intelligence Workspace",
+            "workspace": "trend",
+            "default_dashboard_tab": "dashboard",
+            "current_user": getattr(request.state, "current_user", None),
+        },
+    )
+
+
+@router.get("/industry-intelligence", response_class=HTMLResponse)
+def industry_intelligence_page(request: Request):
+    redirect = _require_login(request)
+    if redirect is not None:
+        return redirect
+    return templates.TemplateResponse(
+        request,
+        "industry_workspace.html",
+        {
+            "page_title": "Industry Intelligence Workspace",
+            "workspace": "industry",
+            "default_dashboard_tab": "industry-intelligence",
             "current_user": getattr(request.state, "current_user", None),
         },
     )

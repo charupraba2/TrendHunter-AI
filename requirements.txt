@@ -12,6 +12,8 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.20
 google-generativeai==0.8.3
+joblib==1.4.2
+scikit-learn==1.5.2
 
 # Optional integrations. Install these only if you need the live external services.
 # They are intentionally excluded from the Docker image to keep builds smaller and more reliable.
@@ -23,5 +25,3 @@ google-generativeai==0.8.3
 # vaderSentiment==3.3.2
 # numpy==1.26.4
 # pandas==2.2.3
-# scikit-learn==1.5.2
-# joblib==1.4.2

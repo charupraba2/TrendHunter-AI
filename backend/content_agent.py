@@ -34,7 +34,7 @@ class ContentAgent:
 
         prompt = self._build_prompt(trend)
         try:
-            model = self._client.GenerativeModel("gemini-1.5-flash")
+            model = self._client.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
             parsed = self._parse_response_text(getattr(response, "text", ""))
             if parsed:

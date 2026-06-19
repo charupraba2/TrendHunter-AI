@@ -219,9 +219,9 @@ class InsightTools:
         self.stopwords = self._load_stopwords()
         self._trend_cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
 
-    def fetch_current_trends(self, region: str = "US", limit: int = 12, niche: str | None = None, platform: str | None = None) -> dict[str, Any]:
+    def fetch_current_trends(self, region: str = "US", limit: int = 12, topic: str | None = None, niche: str | None = None, platform: str | None = None, mode: str | None = None) -> dict[str, Any]:
         profile = self._region_profile(region)
-        queries = self._build_region_queries(profile, niche=niche, platform=platform)
+        queries = self._build_region_queries(profile, topic=topic, niche=niche, platform=platform, mode=mode)
         cache_key = self._cache_key(profile["label"], limit, queries)
         cached = self._trend_cache.get(cache_key)
         if cached:
@@ -299,6 +299,7 @@ class InsightTools:
             "region": region,
             "region_key": profile["key"],
             "region_label": profile["label"],
+            "selected_topic": self._clean_text(topic or niche or mode or ""),
             "region_queries": queries,
             "source_labels": sorted({str(item.get("source_label") or item.get("source_type") or item.get("platform") or "Trend") for item in normalized}),
             "demo_mode": all(item.get("source_type", "").endswith("_demo") for item in normalized) if normalized else True,
@@ -648,14 +649,20 @@ class InsightTools:
         }
         return aliases.get(value, value if value in REGION_PROFILES else "global")
 
-    def _build_region_queries(self, profile: dict[str, Any], niche: str | None = None, platform: str | None = None) -> list[str]:
+    def _build_region_queries(self, profile: dict[str, Any], topic: str | None = None, niche: str | None = None, platform: str | None = None, mode: str | None = None) -> list[str]:
         queries = [str(query).strip() for query in profile.get("queries", []) if str(query).strip()]
+        topic_text = str(topic or "").strip()
         niche_text = str(niche or "").strip()
         platform_text = str(platform or "").strip()
+        mode_text = str(mode or "").strip()
+        if topic_text:
+            queries.insert(0, f"{topic_text} {profile['label']}")
         if niche_text:
             queries.insert(0, f"{niche_text} {profile['label']}")
         if platform_text:
             queries.insert(0, f"{platform_text} {profile['label']}")
+        if mode_text and mode_text.lower() not in {topic_text.lower(), niche_text.lower()}:
+            queries.insert(0, f"{mode_text} {profile['label']}")
         return list(dict.fromkeys(queries))
 
     def _parse_date(self, value: str | None) -> datetime | None:

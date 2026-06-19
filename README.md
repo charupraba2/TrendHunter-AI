@@ -20,12 +20,7 @@ TrendHunter AI now prioritizes creator analysis first and uses live trend intell
 
 Users can submit:
 
-- platform
-- post title or idea
-- caption
-- hashtags
-- content type
-- target audience
+
 
 The Creator Intelligence Lab then analyzes:
 

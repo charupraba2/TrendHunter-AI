@@ -486,7 +486,7 @@ class CreatorIntelligenceService:
         )
 
         try:
-            model = self.gemini_service._client.GenerativeModel("gemini-1.5-flash")
+            model = self.gemini_service._client.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
             parsed = self._parse_json(getattr(response, "text", ""))
             if parsed:

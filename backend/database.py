@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+from threading import Lock
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
-from sqlalchemy import Boolean, JSON, Column, DateTime, Float, Integer, String, create_engine, inspect, text
+from sqlalchemy import Boolean, JSON, Column, DateTime, Float, Integer, String, create_engine, inspect, text, func
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from backend.config import settings
@@ -16,6 +18,8 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+_INDUSTRY_REFRESH_LOCK = Lock()
+_INDUSTRY_LAST_REFRESH_TOKEN: str | None = None
 
 
 class TrendRecord(Base):
@@ -203,6 +207,214 @@ class ReportRecord(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class IndustryCompany(Base):
+    __tablename__ = "industry_company"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String, nullable=False, index=True)
+    website = Column(String, nullable=False)
+    linkedin_url = Column(String, nullable=True)
+    headquarters = Column(String, nullable=True)
+    founded_year = Column(Integer, nullable=True)
+    company_size = Column(String, nullable=True)
+    overview = Column(String, nullable=False)
+    core_focus_areas = Column(JSON, nullable=False, default=list)
+    industry_positioning = Column(String, nullable=False)
+    strategic_themes = Column(JSON, nullable=False, default=list)
+    source_notes = Column(JSON, nullable=False, default=list)
+    recent_strategic_themes = Column(JSON, nullable=False, default=list)
+    focus_keywords = Column(JSON, nullable=False, default=list)
+    market_positioning = Column(String, nullable=True)
+    content_themes = Column(JSON, nullable=False, default=list)
+    company_summary = Column(String, nullable=True)
+    strategic_direction = Column(String, nullable=True)
+    market_narrative = Column(String, nullable=True)
+    last_updated = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryTrend(Base):
+    __tablename__ = "industry_trends"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trend_name = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False, index=True)
+    summary = Column(String, nullable=False)
+    business_impact = Column(String, nullable=False)
+    recommended_action = Column(String, nullable=False)
+    momentum_score = Column(Float, nullable=False, default=0.0)
+    signal_strength = Column(String, nullable=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryCompetitor(Base):
+    __tablename__ = "industry_competitors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    competitor_name = Column(String, nullable=False, index=True)
+    focus_area = Column(String, nullable=False)
+    activity_summary = Column(String, nullable=False)
+    market_momentum_score = Column(Float, nullable=False, default=0.0)
+    positioning = Column(String, nullable=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryInsight(Base):
+    __tablename__ = "industry_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    insight_title = Column(String, nullable=False, index=True)
+    what_is_trending = Column(String, nullable=False)
+    why_it_matters = Column(String, nullable=False)
+    business_impact = Column(String, nullable=False)
+    recommended_action = Column(String, nullable=False)
+    priority = Column(String, nullable=True)
+    insight_type = Column(String, nullable=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryOpportunity(Base):
+    __tablename__ = "industry_opportunities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    opportunity_name = Column(String, nullable=False, index=True)
+    trend_name = Column(String, nullable=False, index=True)
+    summary = Column(String, nullable=False)
+    target_buyer = Column(String, nullable=False)
+    business_value = Column(String, nullable=False)
+    urgency = Column(String, nullable=False)
+    opportunity_score = Column(Float, nullable=False, default=0.0)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    confidence_reason = Column(String, nullable=False, default="")
+    evidence_count = Column(Integer, nullable=False, default=0)
+    source_count = Column(Integer, nullable=False, default=0)
+    source_names = Column(JSON, nullable=False, default=list)
+    source_timestamps = Column(JSON, nullable=False, default=list)
+    evidence_sources = Column(JSON, nullable=False, default=list)
+    supporting_evidence = Column(JSON, nullable=False, default=list)
+    signal_inputs = Column(JSON, nullable=False, default=dict)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryLiveTrend(Base):
+    __tablename__ = "industry_live_trends"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trend_name = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False, index=True)
+    momentum_score = Column(Float, nullable=False, default=0.0)
+    growth_score = Column(Float, nullable=False, default=0.0)
+    source_count = Column(Integer, nullable=False, default=0)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    executive_summary = Column(String, nullable=False)
+    signal_strength = Column(String, nullable=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryKeyword(Base):
+    __tablename__ = "industry_keywords"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keyword = Column(String, nullable=False, index=True)
+    keyword_group = Column(String, nullable=False, index=True)
+    momentum_score = Column(Float, nullable=False, default=0.0)
+    growth_score = Column(Float, nullable=False, default=0.0)
+    source_count = Column(Integer, nullable=False, default=0)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    executive_summary = Column(String, nullable=False)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryCompetitorActivity(Base):
+    __tablename__ = "industry_competitor_activity"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    focus_area = Column(String, nullable=False)
+    activity_summary = Column(String, nullable=False)
+    momentum_score = Column(Float, nullable=False, default=0.0)
+    strategic_position = Column(String, nullable=False)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryRecommendation(Base):
+    __tablename__ = "industry_recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trend = Column(String, nullable=False, index=True)
+    reason = Column(String, nullable=False)
+    impact = Column(String, nullable=False)
+    recommended_action = Column(String, nullable=False)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class TrendHistory(Base):
+    __tablename__ = "trend_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keyword = Column(String, nullable=False, index=True)
+    trend_score = Column(Float, nullable=False, default=0.0)
+    growth_score = Column(Float, nullable=False, default=0.0)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    momentum = Column(String, nullable=False, default="Stable")
+    source_count = Column(Integer, nullable=False, default=0)
+    news_count = Column(Integer, nullable=False, default=0)
+    rag_match_count = Column(Integer, nullable=False, default=0)
+    competitor_mention_count = Column(Integer, nullable=False, default=0)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class IndustryReport(Base):
+    __tablename__ = "industry_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_key = Column(String, nullable=False, unique=True, index=True)
+    week_label = Column(String, nullable=False)
+    top_trends = Column(JSON, nullable=False, default=list)
+    competitor_highlights = Column(JSON, nullable=False, default=list)
+    strategic_risks = Column(JSON, nullable=False, default=list)
+    strategic_opportunities = Column(JSON, nullable=False, default=list)
+    executive_recommendations = Column(JSON, nullable=False, default=list)
+    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    source_notes = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IndustryRAGDocument(Base):
+    __tablename__ = "industry_rag_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    doc_type = Column(String, nullable=False, index=True)
+    source_name = Column(String, nullable=False, index=True)
+    title = Column(String, nullable=False, index=True)
+    content = Column(String, nullable=False)
+    metadata_json = Column("metadata", JSON, nullable=False, default=dict)
+    relevance_score = Column(Float, nullable=False, default=0.0)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_trends_columns()
@@ -212,6 +424,9 @@ def init_db() -> None:
     _ensure_users_columns()
     _ensure_user_sessions_columns()
     _ensure_workspace_columns()
+    _ensure_industry_company_columns()
+    _ensure_industry_live_columns()
+    _seed_industry_intelligence()
 
 
 def _ensure_trends_columns() -> None:
@@ -436,6 +651,858 @@ def _ensure_workspace_columns() -> None:
                     connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
 
 
+def _ensure_industry_company_columns() -> None:
+    inspector = inspect(engine)
+    if "industry_company" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("industry_company")}
+    required_columns = {
+        "company_name": "VARCHAR",
+        "website": "VARCHAR",
+        "linkedin_url": "VARCHAR",
+        "headquarters": "VARCHAR",
+        "founded_year": "INTEGER",
+        "company_size": "VARCHAR",
+        "overview": "VARCHAR",
+        "core_focus_areas": "JSON",
+        "industry_positioning": "VARCHAR",
+        "strategic_themes": "JSON",
+        "source_notes": "JSON",
+        "recent_strategic_themes": "JSON",
+        "focus_keywords": "JSON",
+        "market_positioning": "VARCHAR",
+        "content_themes": "JSON",
+        "company_summary": "VARCHAR",
+        "strategic_direction": "VARCHAR",
+        "market_narrative": "VARCHAR",
+        "last_updated": "DATETIME",
+    }
+
+    with engine.begin() as connection:
+        for column_name, column_type in required_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE industry_company ADD COLUMN {column_name} {column_type}"))
+
+
+def _ensure_industry_live_columns() -> None:
+    inspector = inspect(engine)
+    table_columns = {
+        "industry_live_trends": {
+            "trend_name": "VARCHAR",
+            "category": "VARCHAR",
+            "momentum_score": "FLOAT",
+            "growth_score": "FLOAT",
+            "source_count": "INTEGER",
+            "last_updated": "DATETIME",
+            "executive_summary": "VARCHAR",
+            "signal_strength": "VARCHAR",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
+        "industry_keywords": {
+            "keyword": "VARCHAR",
+            "keyword_group": "VARCHAR",
+            "momentum_score": "FLOAT",
+            "growth_score": "FLOAT",
+            "source_count": "INTEGER",
+            "last_updated": "DATETIME",
+            "executive_summary": "VARCHAR",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
+        "industry_competitor_activity": {
+            "name": "VARCHAR",
+            "focus_area": "VARCHAR",
+            "activity_summary": "VARCHAR",
+            "momentum_score": "FLOAT",
+            "strategic_position": "VARCHAR",
+            "last_updated": "DATETIME",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
+        "industry_recommendations": {
+            "trend": "VARCHAR",
+            "reason": "VARCHAR",
+            "impact": "VARCHAR",
+            "recommended_action": "VARCHAR",
+            "confidence_score": "FLOAT",
+            "last_updated": "DATETIME",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
+        "industry_reports": {
+            "report_key": "VARCHAR",
+            "week_label": "VARCHAR",
+            "top_trends": "JSON",
+            "competitor_highlights": "JSON",
+            "strategic_risks": "JSON",
+            "strategic_opportunities": "JSON",
+            "executive_recommendations": "JSON",
+            "generated_at": "DATETIME",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
+        "industry_opportunities": {
+            "opportunity_name": "VARCHAR",
+            "trend_name": "VARCHAR",
+            "summary": "VARCHAR",
+            "target_buyer": "VARCHAR",
+            "business_value": "VARCHAR",
+            "urgency": "VARCHAR",
+            "opportunity_score": "FLOAT",
+            "confidence_score": "FLOAT",
+            "confidence_reason": "VARCHAR",
+            "evidence_count": "INTEGER",
+            "source_count": "INTEGER",
+            "source_names": "JSON",
+            "source_timestamps": "JSON",
+            "evidence_sources": "JSON",
+            "supporting_evidence": "JSON",
+            "signal_inputs": "JSON",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
+    }
+
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as connection:
+        for table_name, columns in table_columns.items():
+            if table_name not in existing_tables:
+                continue
+            existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+            for column_name, column_type in columns.items():
+                if column_name not in existing_columns:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+
+
+_INDUSTRY_COMPANY_SEED = {
+    "company_name": "Giggso",
+    "website": "https://www.giggso.com/",
+    "linkedin_url": "https://www.linkedin.com/company/gogiggso/posts/?feedView=all",
+    "headquarters": "Troy, Michigan",
+    "founded_year": 2017,
+    "company_size": "51-200 employees",
+    "overview": "Giggso positions itself as an AI strategy, security, transformation, and data engineering company focused on moving enterprises from AI pilots to production-grade AI profit centers.",
+    "core_focus_areas": [
+        "AI Governance",
+        "AI Security",
+        "Enterprise AI",
+        "AI Strategy and Transformation",
+        "ModelOps and Observability",
+        "Data Engineering",
+        "Trustworthy AI",
+    ],
+    "industry_positioning": "A governance-first enterprise AI partner that combines GRC, security, and engineering to make AI safe, scalable, and operationally useful.",
+    "strategic_themes": [
+        "Move AI from pilot to production",
+        "Turn governance into a growth engine",
+        "Bridge strategy and execution",
+        "Reduce shadow AI and compliance debt",
+        "Make AI observable, secure, and trusted",
+    ],
+    "source_notes": [
+        "Official website emphasizes AI strategy, security, transformation, and data engineering.",
+        "LinkedIn profile highlights AI ML - Safe & Responsible and a governance-first mission.",
+        "Positioning is inferred from the company website and LinkedIn page.",
+    ],
+}
+
+_INDUSTRY_TRENDS_SEED = [
+    {
+        "trend_name": "AI Governance",
+        "category": "Governance",
+        "summary": "Enterprises are formalizing review, approval, and policy workflows before scaling GenAI and agentic systems.",
+        "business_impact": "Governance maturity is becoming a buying criterion for enterprise AI adoption.",
+        "recommended_action": "Package governance checkpoints, policy controls, and audit-ready reporting into the product narrative.",
+        "momentum_score": 96,
+        "signal_strength": "Very High",
+        "source_notes": ["Matches Giggso's governance-first positioning."],
+    },
+    {
+        "trend_name": "Agentic AI",
+        "category": "Agentic AI",
+        "summary": "Autonomous workflows are moving from demos into constrained enterprise operations.",
+        "business_impact": "Teams need guardrails, approvals, and monitoring to prevent runaway agent behavior.",
+        "recommended_action": "Show how the platform observes, constrains, and explains agent decisions.",
+        "momentum_score": 92,
+        "signal_strength": "Very High",
+        "source_notes": ["Linked to Giggso's recent agentic AI messaging on LinkedIn."],
+    },
+    {
+        "trend_name": "LLM Security",
+        "category": "Security",
+        "summary": "Security teams are prioritizing prompt injection defense, data leakage prevention, and model abuse controls.",
+        "business_impact": "Security is a primary blocker for enterprise LLM rollout in regulated environments.",
+        "recommended_action": "Frame security as a control layer for LLM apps, not just a compliance add-on.",
+        "momentum_score": 94,
+        "signal_strength": "Very High",
+        "source_notes": ["Aligned with AI security and trustworthy AI messaging."],
+    },
+    {
+        "trend_name": "RAG",
+        "category": "Knowledge Systems",
+        "summary": "RAG remains the default architecture for grounded enterprise assistants and internal knowledge copilots.",
+        "business_impact": "Demand is shifting toward better retrieval, citations, and quality controls.",
+        "recommended_action": "Emphasize knowledge ingestion, retrieval quality, and answer traceability.",
+        "momentum_score": 88,
+        "signal_strength": "High",
+        "source_notes": ["Important for enterprise AI deployments and support workflows."],
+    },
+    {
+        "trend_name": "Model Monitoring",
+        "category": "Observability",
+        "summary": "Organizations are investing in drift detection, quality monitoring, and incident workflows for production models.",
+        "business_impact": "Observability helps reduce silent failures and compliance risk after deployment.",
+        "recommended_action": "Lead with monitoring dashboards, anomaly detection, and model health reporting.",
+        "momentum_score": 90,
+        "signal_strength": "High",
+        "source_notes": ["Consistent with ModelOps and observability specialties."],
+    },
+    {
+        "trend_name": "Enterprise AI",
+        "category": "Enterprise Adoption",
+        "summary": "Enterprises want AI that integrates with governance, security, and existing operating models.",
+        "business_impact": "Winning vendors need implementation support and ROI framing, not just model capability.",
+        "recommended_action": "Position the platform as a production AI operating system for regulated teams.",
+        "momentum_score": 91,
+        "signal_strength": "Very High",
+        "source_notes": ["Website and LinkedIn both point toward enterprise transformation."],
+    },
+    {
+        "trend_name": "AI Risk",
+        "category": "Risk",
+        "summary": "Boards and executives are asking for risk visibility across data, model behavior, and business process exposure.",
+        "business_impact": "Risk reporting is becoming a strategic requirement for enterprise AI programs.",
+        "recommended_action": "Create executive risk summaries that translate technical metrics into business language.",
+        "momentum_score": 89,
+        "signal_strength": "High",
+        "source_notes": ["Supports GRC-led enterprise decision making."],
+    },
+    {
+        "trend_name": "AI Compliance",
+        "category": "Compliance",
+        "summary": "Regulated industries need evidence, controls, and documentation for AI use cases and model operations.",
+        "business_impact": "Compliance readiness can determine how quickly AI reaches production in finance, healthcare, and manufacturing.",
+        "recommended_action": "Surface audit trails, policy mapping, and compliance-ready workflows as core product value.",
+        "momentum_score": 93,
+        "signal_strength": "Very High",
+        "source_notes": ["Directly aligned with governance, risk, and compliance messaging."],
+    },
+]
+
+_INDUSTRY_COMPETITOR_SEED = [
+    {
+        "competitor_name": "OpenAI",
+        "focus_area": "Foundation models and enterprise assistant platforms",
+        "activity_summary": "Continues to push model capability, deployment tooling, and enterprise usage expansion across chat and API products.",
+        "market_momentum_score": 98,
+        "positioning": "Infrastructure and model leader shaping the broader enterprise AI stack.",
+        "source_notes": ["Competitive reference for model capability and ecosystem influence."],
+    },
+    {
+        "competitor_name": "Anthropic",
+        "focus_area": "Enterprise LLM safety and controlled reasoning",
+        "activity_summary": "Strong market attention around safety, reliability, and enterprise-grade assistant behavior.",
+        "market_momentum_score": 95,
+        "positioning": "Safety-forward LLM vendor competing on trust and enterprise readiness.",
+        "source_notes": ["Relevant to governance, policy, and agentic AI control narratives."],
+    },
+    {
+        "competitor_name": "Google DeepMind",
+        "focus_area": "Research-led model innovation and multimodal systems",
+        "activity_summary": "Deep model research and Gemini ecosystem continue to shape AI platform expectations.",
+        "market_momentum_score": 94,
+        "positioning": "Research powerhouse influencing enterprise expectations for model performance.",
+        "source_notes": ["Benchmark competitor for model quality and research depth."],
+    },
+    {
+        "competitor_name": "Microsoft AI",
+        "focus_area": "Enterprise AI distribution through cloud and productivity platforms",
+        "activity_summary": "Enterprise copilot adoption and platform bundling keep Microsoft central in enterprise AI buying decisions.",
+        "market_momentum_score": 96,
+        "positioning": "Distribution leader owning enterprise workflow surfaces and cloud bundling.",
+        "source_notes": ["Important for enterprise AI platform and workflow positioning."],
+    },
+    {
+        "competitor_name": "Perplexity",
+        "focus_area": "Answer engines and AI search",
+        "activity_summary": "Visible momentum around search-led discovery, enterprise research workflows, and answer quality.",
+        "market_momentum_score": 89,
+        "positioning": "Fast-growing answer engine that sets expectations for retrieval and grounded responses.",
+        "source_notes": ["Relevant for RAG, answer quality, and enterprise research experiences."],
+    },
+    {
+        "competitor_name": "Cohere",
+        "focus_area": "Enterprise LLMs and secure private deployments",
+        "activity_summary": "Enterprise-facing model and retrieval products continue to reinforce privacy, customization, and control.",
+        "market_momentum_score": 90,
+        "positioning": "Enterprise LLM specialist focused on secure deployment and controlled adoption.",
+        "source_notes": ["Comparable in regulated enterprise AI environments."],
+    },
+]
+
+_INDUSTRY_INSIGHT_SEED = [
+    {
+        "insight_title": "Governance is the buying trigger",
+        "what_is_trending": "Enterprise buyers are moving from model curiosity to controlled AI rollout with policy, review, and approval layers.",
+        "why_it_matters": "The companies that reduce governance friction will win larger and faster enterprise deployments.",
+        "business_impact": "Shorter sales cycles and stronger trust with regulated buyers.",
+        "recommended_action": "Lead with governance workflows, auditability, and implementation readiness in every sales motion.",
+        "priority": "High",
+        "insight_type": "Executive",
+        "source_notes": ["Inferred from Giggso's governance-first market posture."],
+    },
+    {
+        "insight_title": "Security is now part of AI value",
+        "what_is_trending": "Security, not just model quality, is shaping enterprise AI vendor selection.",
+        "why_it_matters": "AI security concerns often block deployment even when business demand is strong.",
+        "business_impact": "Security positioning can unlock regulated sectors and premium enterprise deals.",
+        "recommended_action": "Package prompt injection, data leakage, and model abuse protection as board-level value.",
+        "priority": "High",
+        "insight_type": "Risk",
+        "source_notes": ["Aligned with the company's AI security and trustworthy AI themes."],
+    },
+    {
+        "insight_title": "Observability is the proof layer",
+        "what_is_trending": "Teams want visibility into what models, RAG pipelines, and agents are actually doing in production.",
+        "why_it_matters": "Observability reduces post-launch surprises and creates trust with operations and compliance teams.",
+        "business_impact": "Higher renewal potential and better expansion into enterprise AI ops budgets.",
+        "recommended_action": "Make observability dashboards and model-health reporting a central product story.",
+        "priority": "Medium",
+        "insight_type": "Operations",
+        "source_notes": ["Reflects ModelOps and observability specialties on the company profile."],
+    },
+    {
+        "insight_title": "RAG is the enterprise bridge",
+        "what_is_trending": "Retrieval-grounded systems remain the practical path to useful enterprise assistants.",
+        "why_it_matters": "RAG lets organizations connect proprietary knowledge to AI without overcommitting to pure model automation.",
+        "business_impact": "Better fit for knowledge-heavy use cases in support, operations, and compliance.",
+        "recommended_action": "Frame RAG as a governance-friendly enterprise assistant pattern.",
+        "priority": "Medium",
+        "insight_type": "Adoption",
+        "source_notes": ["Useful for enterprise knowledge and support workflows."],
+    },
+]
+
+_INDUSTRY_OPPORTUNITY_SEED = [
+    {
+        "opportunity_name": "Governed AI Command Center",
+        "trend_name": "AI Governance",
+        "summary": "Launch an executive dashboard for policy tracking, approvals, exception handling, and audit readiness.",
+        "target_buyer": "CIO, CISO, AI governance lead",
+        "business_value": "Turns governance into a visible operating system for AI adoption.",
+        "urgency": "Immediate",
+        "opportunity_score": 97,
+        "source_notes": ["Strong fit for Giggso's governance-led story."],
+    },
+    {
+        "opportunity_name": "Enterprise Agent Safety Layer",
+        "trend_name": "Agentic AI",
+        "summary": "Package controls for agent permissions, approvals, action logging, and human-in-the-loop checkpoints.",
+        "target_buyer": "AI platform owner, security leader",
+        "business_value": "Reduces fear around autonomous workflows and accelerates pilot-to-production conversion.",
+        "urgency": "Immediate",
+        "opportunity_score": 94,
+        "source_notes": ["Matches current agentic AI momentum."],
+    },
+    {
+        "opportunity_name": "RAG Quality Observatory",
+        "trend_name": "RAG",
+        "summary": "Offer retrieval quality, citation coverage, and grounded answer tracking for enterprise knowledge systems.",
+        "target_buyer": "Head of Knowledge, Product, Support ops",
+        "business_value": "Improves answer trust while lowering support and training costs.",
+        "urgency": "Near-term",
+        "opportunity_score": 91,
+        "source_notes": ["Supports grounded enterprise copilots."],
+    },
+    {
+        "opportunity_name": "AI Compliance Evidence Hub",
+        "trend_name": "AI Compliance",
+        "summary": "Create evidence packs, control maps, and policy-ready reporting for regulated buyers.",
+        "target_buyer": "Compliance, risk, legal",
+        "business_value": "Speeds security reviews and compliance approvals.",
+        "urgency": "Immediate",
+        "opportunity_score": 95,
+        "source_notes": ["Directly supports GRC-led sales cycles."],
+    },
+    {
+        "opportunity_name": "Model Monitoring for Production AI",
+        "trend_name": "Model Monitoring",
+        "summary": "Provide drift detection, incident workflows, and production health views for AI teams.",
+        "target_buyer": "ML engineering, platform ops",
+        "business_value": "Makes post-launch reliability visible and actionable.",
+        "urgency": "Near-term",
+        "opportunity_score": 90,
+        "source_notes": ["Matches the observability positioning."],
+    },
+]
+
+
+_INDUSTRY_LIVE_TREND_BASE = [
+    {
+        "trend_name": "AI Governance",
+        "category": "Governance",
+        "base_momentum": 97,
+        "base_growth": 93,
+        "source_count": 18,
+        "executive_summary": "Governance is shifting from policy documentation to operational control for enterprise AI programs.",
+        "signal_strength": "Very High",
+        "source_notes": ["Governance-led enterprise buying signal"],
+    },
+    {
+        "trend_name": "Agentic AI",
+        "category": "Autonomous Systems",
+        "base_momentum": 95,
+        "base_growth": 96,
+        "source_count": 16,
+        "executive_summary": "Agentic AI is accelerating, but buyers want guardrails before allowing autonomous actions at scale.",
+        "signal_strength": "Very High",
+        "source_notes": ["High-growth agent workflow signal"],
+    },
+    {
+        "trend_name": "LLM Security",
+        "category": "Security",
+        "base_momentum": 94,
+        "base_growth": 91,
+        "source_count": 15,
+        "executive_summary": "Security teams are prioritizing prompt injection defense, data leakage controls, and safe model usage.",
+        "signal_strength": "Very High",
+        "source_notes": ["Enterprise security signal"],
+    },
+    {
+        "trend_name": "Model Monitoring",
+        "category": "Observability",
+        "base_momentum": 91,
+        "base_growth": 87,
+        "source_count": 13,
+        "executive_summary": "Model health monitoring is now a production requirement rather than a nice-to-have analytics layer.",
+        "signal_strength": "High",
+        "source_notes": ["Production AI observability signal"],
+    },
+    {
+        "trend_name": "AI Compliance",
+        "category": "Compliance",
+        "base_momentum": 96,
+        "base_growth": 90,
+        "source_count": 14,
+        "executive_summary": "Compliance readiness is becoming a sales enabler for regulated enterprise AI deployments.",
+        "signal_strength": "Very High",
+        "source_notes": ["Regulated market signal"],
+    },
+    {
+        "trend_name": "AI Risk",
+        "category": "Risk",
+        "base_momentum": 89,
+        "base_growth": 84,
+        "source_count": 11,
+        "executive_summary": "Boards are asking for AI risk visibility across data, behavior, and operational exposure.",
+        "signal_strength": "High",
+        "source_notes": ["Executive risk signal"],
+    },
+    {
+        "trend_name": "RAG",
+        "category": "Knowledge Systems",
+        "base_momentum": 90,
+        "base_growth": 85,
+        "source_count": 12,
+        "executive_summary": "RAG remains the practical path to grounded enterprise assistants and knowledge copilots.",
+        "signal_strength": "High",
+        "source_notes": ["Enterprise knowledge signal"],
+    },
+    {
+        "trend_name": "Enterprise AI",
+        "category": "Adoption",
+        "base_momentum": 93,
+        "base_growth": 88,
+        "source_count": 17,
+        "executive_summary": "Enterprise buyers want AI platforms that can survive governance, security, and implementation scrutiny.",
+        "signal_strength": "Very High",
+        "source_notes": ["Enterprise adoption signal"],
+    },
+    {
+        "trend_name": "Trustworthy AI",
+        "category": "Trust",
+        "base_momentum": 92,
+        "base_growth": 86,
+        "source_count": 10,
+        "executive_summary": "Trustworthy AI language is becoming a differentiator in procurement and executive reviews.",
+        "signal_strength": "High",
+        "source_notes": ["Trust and assurance signal"],
+    },
+    {
+        "trend_name": "Shadow AI",
+        "category": "Governance Risk",
+        "base_momentum": 88,
+        "base_growth": 89,
+        "source_count": 9,
+        "executive_summary": "Shadow AI usage is forcing governance teams to formalize controls faster than planned.",
+        "signal_strength": "High",
+        "source_notes": ["Hidden usage and control gap signal"],
+    },
+]
+
+_INDUSTRY_KEYWORD_BASE = [
+    {"keyword": "AI Governance", "keyword_group": "Top AI Governance Keywords", "base_momentum": 99, "base_growth": 94, "source_count": 20},
+    {"keyword": "Agentic AI", "keyword_group": "Top AI Governance Keywords", "base_momentum": 97, "base_growth": 96, "source_count": 18},
+    {"keyword": "LLM Security", "keyword_group": "Top AI Governance Keywords", "base_momentum": 96, "base_growth": 93, "source_count": 16},
+    {"keyword": "Model Monitoring", "keyword_group": "Fastest Growing Keywords", "base_momentum": 91, "base_growth": 95, "source_count": 14},
+    {"keyword": "Policy Controls", "keyword_group": "Fastest Growing Keywords", "base_momentum": 90, "base_growth": 94, "source_count": 15},
+    {"keyword": "Trustworthy AI", "keyword_group": "Fastest Growing Keywords", "base_momentum": 92, "base_growth": 92, "source_count": 12},
+    {"keyword": "AI Risk", "keyword_group": "Enterprise Adoption Keywords", "base_momentum": 88, "base_growth": 87, "source_count": 11},
+    {"keyword": "RAG", "keyword_group": "Enterprise Adoption Keywords", "base_momentum": 89, "base_growth": 86, "source_count": 13},
+    {"keyword": "Enterprise AI", "keyword_group": "Enterprise Adoption Keywords", "base_momentum": 94, "base_growth": 90, "source_count": 17},
+    {"keyword": "Shadow AI", "keyword_group": "Enterprise Adoption Keywords", "base_momentum": 86, "base_growth": 91, "source_count": 10},
+]
+
+_INDUSTRY_COMPETITOR_ACTIVITY_BASE = [
+    {
+        "name": "OpenAI",
+        "focus_area": "Foundation models and enterprise assistants",
+        "activity_summary": "Continues to define the pace of enterprise AI with model releases, tooling, and platform adoption.",
+        "base_momentum": 98,
+        "strategic_position": "Category setter for enterprise model capability and ecosystem breadth.",
+        "source_notes": ["Model capability benchmark"],
+    },
+    {
+        "name": "Anthropic",
+        "focus_area": "Enterprise LLM safety and controlled reasoning",
+        "activity_summary": "Market attention remains high around safety, reliability, and enterprise-grade assistant behavior.",
+        "base_momentum": 95,
+        "strategic_position": "Safety-first LLM competitor influencing governance narratives.",
+        "source_notes": ["Safety-forward enterprise LLM"],
+    },
+    {
+        "name": "Microsoft AI",
+        "focus_area": "Enterprise AI distribution and productivity workflows",
+        "activity_summary": "Copilot distribution keeps Microsoft central to enterprise AI purchase and deployment decisions.",
+        "base_momentum": 96,
+        "strategic_position": "Distribution leader with workflow ownership across the enterprise stack.",
+        "source_notes": ["Enterprise workflow bundling"],
+    },
+    {
+        "name": "Google DeepMind",
+        "focus_area": "Research-led model innovation and multimodal systems",
+        "activity_summary": "DeepMind and Gemini continue to raise expectations for research depth and multimodal capability.",
+        "base_momentum": 94,
+        "strategic_position": "Research powerhouse setting performance expectations.",
+        "source_notes": ["Research and multimodal benchmark"],
+    },
+    {
+        "name": "Perplexity",
+        "focus_area": "Answer engines and AI search",
+        "activity_summary": "Search-led discovery and grounded answers keep Perplexity highly visible in enterprise research workflows.",
+        "base_momentum": 89,
+        "strategic_position": "Answer engine competing on retrieval quality and trust.",
+        "source_notes": ["Grounded answers benchmark"],
+    },
+    {
+        "name": "Cohere",
+        "focus_area": "Enterprise LLMs and secure private deployments",
+        "activity_summary": "Private deployment, customization, and enterprise controls remain central to the Cohere story.",
+        "base_momentum": 90,
+        "strategic_position": "Enterprise LLM specialist focused on controlled adoption.",
+        "source_notes": ["Private enterprise deployment"],
+    },
+]
+
+_INDUSTRY_RECOMMENDATION_BASE = [
+    {
+        "trend": "Agentic AI",
+        "reason": "Autonomous workflows are moving from demos into constrained production use cases.",
+        "impact": "Governance controls can become a competitive differentiator in the sales process.",
+        "recommended_action": "Lead with policy checks, approval flows, and action logging for agent deployments.",
+        "base_confidence": 95,
+        "source_notes": ["Agentic AI adoption signal"],
+    },
+    {
+        "trend": "LLM Security",
+        "reason": "Security teams are prioritizing prompt injection and data leakage controls.",
+        "impact": "Security buyers are more likely to approve enterprise rollouts when safeguards are explicit.",
+        "recommended_action": "Package LLM threat detection, leakage prevention, and policy enforcement as a core module.",
+        "base_confidence": 96,
+        "source_notes": ["Security budget signal"],
+    },
+    {
+        "trend": "AI Compliance",
+        "reason": "Regulated industries need audit-ready evidence and operational controls.",
+        "impact": "Compliance automation can accelerate enterprise procurement and reduce review cycles.",
+        "recommended_action": "Show evidence packs, policy mapping, and audit trail exports in executive messaging.",
+        "base_confidence": 94,
+        "source_notes": ["Regulated buying signal"],
+    },
+    {
+        "trend": "Model Monitoring",
+        "reason": "Production AI teams need visibility into drift, incidents, and answer quality.",
+        "impact": "Observability becomes a retention and expansion lever after deployment.",
+        "recommended_action": "Position monitoring dashboards as operational proof of trustworthy AI.",
+        "base_confidence": 91,
+        "source_notes": ["Production reliability signal"],
+    },
+]
+
+
+def _clamp_score(value: float, minimum: float = 0.0, maximum: float = 100.0) -> float:
+    return round(max(minimum, min(maximum, value)), 2)
+
+
+def _stable_variation(seed: str, cycle: int, spread: int = 5) -> int:
+    digest = hashlib.sha256(f"{seed}:{cycle}".encode("utf-8")).hexdigest()
+    raw = int(digest[:8], 16)
+    return int(raw % (spread * 2 + 1)) - spread
+
+
+def _live_cycle(now: datetime | None = None) -> int:
+    now = now or datetime.utcnow()
+    return int(now.timestamp() // 1800)
+
+
+def _live_bucket(now: datetime | None = None) -> datetime:
+    now = now or datetime.utcnow()
+    return now.replace(minute=(now.minute // 30) * 30, second=0, microsecond=0)
+
+
+def _live_summary(base_summary: str, trend_name: str, momentum: float, growth: float, source_count: int) -> str:
+    return (
+        f"{trend_name} is tracking at {momentum:.0f}% momentum and {growth:.0f}% growth across {source_count} live signals. "
+        f"{base_summary}"
+    )
+
+
+def _json_safe(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    return value
+
+
+def _build_live_industry_snapshot(now: datetime | None = None) -> dict:
+    now = now or datetime.utcnow()
+    cycle = _live_cycle(now)
+    bucket = _live_bucket(now)
+
+    live_trends: list[dict] = []
+    for item in _INDUSTRY_LIVE_TREND_BASE:
+        momentum = _clamp_score(item["base_momentum"] + _stable_variation(item["trend_name"], cycle, 3))
+        growth = _clamp_score(item["base_growth"] + _stable_variation(f"{item['trend_name']}:growth", cycle, 4))
+        source_count = max(1, int(item["source_count"]) + _stable_variation(f"{item['trend_name']}:sources", cycle, 2))
+        live_trends.append(
+            {
+                "trend_name": item["trend_name"],
+                "category": item["category"],
+                "momentum_score": momentum,
+                "growth_score": growth,
+                "source_count": source_count,
+                "last_updated": bucket,
+                "executive_summary": _live_summary(item["executive_summary"], item["trend_name"], momentum, growth, source_count),
+                "signal_strength": item["signal_strength"],
+                "source_notes": item["source_notes"],
+                "created_at": bucket,
+                "updated_at": now,
+            }
+        )
+
+    keyword_groups = {
+        "Top AI Governance Keywords": "Executive priority terms appearing across governance-led AI discussions.",
+        "Fastest Growing Keywords": "Keywords with the steepest recent growth and management attention.",
+        "Enterprise Adoption Keywords": "Adoption language showing up in enterprise buyer conversations.",
+    }
+    live_keywords: list[dict] = []
+    for item in _INDUSTRY_KEYWORD_BASE:
+        momentum = _clamp_score(item["base_momentum"] + _stable_variation(item["keyword"], cycle, 3))
+        growth = _clamp_score(item["base_growth"] + _stable_variation(f"{item['keyword']}:growth", cycle, 4))
+        source_count = max(1, int(item["source_count"]) + _stable_variation(f"{item['keyword']}:sources", cycle, 2))
+        live_keywords.append(
+            {
+                "keyword": item["keyword"],
+                "keyword_group": item["keyword_group"],
+                "momentum_score": momentum,
+                "growth_score": growth,
+                "source_count": source_count,
+                "last_updated": bucket,
+                "executive_summary": f"{item['keyword']} remains a {item['keyword_group'].lower()} signal with momentum at {momentum:.0f}%.",
+                "source_notes": [keyword_groups.get(item["keyword_group"], "")],
+                "created_at": bucket,
+                "updated_at": now,
+            }
+        )
+
+    live_competitors: list[dict] = []
+    for item in _INDUSTRY_COMPETITOR_ACTIVITY_BASE:
+        momentum = _clamp_score(item["base_momentum"] + _stable_variation(item["name"], cycle, 2))
+        live_competitors.append(
+            {
+                "name": item["name"],
+                "focus_area": item["focus_area"],
+                "activity_summary": item["activity_summary"],
+                "momentum_score": momentum,
+                "strategic_position": f"{item['strategic_position']} Momentum remains at {momentum:.0f}%.",
+                "last_updated": bucket,
+                "source_notes": item["source_notes"],
+                "created_at": bucket,
+                "updated_at": now,
+            }
+        )
+
+    live_recommendations: list[dict] = []
+    trend_lookup = {item["trend_name"]: item for item in live_trends}
+    for item in _INDUSTRY_RECOMMENDATION_BASE:
+        trend = trend_lookup.get(item["trend"], {})
+        confidence = _clamp_score(item["base_confidence"] + _stable_variation(item["trend"], cycle, 2))
+        live_recommendations.append(
+            {
+                "trend": item["trend"],
+                "reason": item["reason"],
+                "impact": item["impact"],
+                "recommended_action": item["recommended_action"],
+                "confidence_score": confidence,
+                "last_updated": bucket,
+                "source_notes": item["source_notes"] + ([trend.get("executive_summary")] if trend else []),
+                "created_at": bucket,
+                "updated_at": now,
+            }
+        )
+
+    top_trends = sorted(live_trends, key=lambda row: (row["momentum_score"], row["growth_score"]), reverse=True)[:5]
+    competitor_highlights = sorted(live_competitors, key=lambda row: row["momentum_score"], reverse=True)[:4]
+    strategic_risks = [
+        {
+            "risk": "Shadow AI usage expanding faster than policy coverage.",
+            "severity": "High",
+            "response": "Position governance automation as the fastest way to close the policy gap.",
+        },
+        {
+            "risk": "LLM security reviews slowing enterprise deployment.",
+            "severity": "High",
+            "response": "Make security controls visible in the product narrative and implementation checklist.",
+        },
+        {
+            "risk": "Competitors bundling AI capabilities into existing enterprise platforms.",
+            "severity": "Medium",
+            "response": "Differentiate on governance depth, observability, and compliance proof.",
+        },
+    ]
+    strategic_opportunities = [
+        {
+            "opportunity": "Governed agent rollout packages",
+            "signal": "Agentic AI adoption is rising, but buyers want guardrails.",
+        },
+        {
+            "opportunity": "Compliance evidence automation",
+            "signal": "Regulated buyers need audit-ready proof to accelerate procurement.",
+        },
+        {
+            "opportunity": "RAG quality and observability",
+            "signal": "Knowledge assistant teams want grounded answers and monitoring.",
+        },
+    ]
+
+    report = {
+        "report_key": "weekly-industry-report",
+        "week_label": f"Week of {bucket.date().isoformat()}",
+        "top_trends": _json_safe(top_trends),
+        "competitor_highlights": _json_safe(competitor_highlights),
+        "strategic_risks": _json_safe(strategic_risks),
+        "strategic_opportunities": _json_safe(strategic_opportunities),
+        "executive_recommendations": _json_safe(live_recommendations),
+        "generated_at": now,
+        "source_notes": ["Weekly executive intelligence snapshot refreshed from live industry signals."],
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    company_summary = (
+        "Giggso is positioned as a governance-first enterprise AI company focused on making AI safe, secure, observable, and production ready."
+    )
+    strategic_direction = (
+        "Lead enterprise buyers from AI experimentation to controlled production adoption through governance, security, and compliance tooling."
+    )
+    market_narrative = (
+        "The market is rewarding vendors that can reduce AI risk while accelerating enterprise deployment and proving business value."
+    )
+    company_row = {
+        **_INDUSTRY_COMPANY_SEED,
+        "recent_strategic_themes": [
+            "AI Governance automation",
+            "AI Security and LLM controls",
+            "Enterprise AI deployment readiness",
+            "AI Compliance evidence",
+            "Agentic AI guardrails",
+        ],
+        "focus_keywords": [item["keyword"] for item in live_keywords[:7]],
+        "market_positioning": "Governance-first enterprise AI platform and services partner.",
+        "content_themes": [
+            "Safe and responsible AI",
+            "Governance and compliance",
+            "Enterprise AI operations",
+            "Security and trust",
+        ],
+        "company_summary": company_summary,
+        "strategic_direction": strategic_direction,
+        "market_narrative": market_narrative,
+        "last_updated": now,
+        "updated_at": now,
+    }
+
+    return {
+        "company": company_row,
+        "trends": live_trends,
+        "keywords": live_keywords,
+        "competitors": live_competitors,
+        "recommendations": live_recommendations,
+        "report": report,
+    }
+
+
+def _seed_industry_intelligence() -> None:
+    session = get_db_session()
+    try:
+        has_live_data = (
+            session.query(IndustryCompany.id).first() is not None
+            and session.query(IndustryLiveTrend.id).first() is not None
+            and session.query(IndustryKeyword.id).first() is not None
+            and session.query(IndustryCompetitorActivity.id).first() is not None
+            and session.query(IndustryRecommendation.id).first() is not None
+            and session.query(IndustryReport.id).first() is not None
+        )
+        if not has_live_data:
+            try:
+                from backend.services.industry_intelligence_service import industry_intelligence_service
+
+                industry_intelligence_service.refresh(force=True)
+            except Exception:
+                if session.query(IndustryCompany.id).first() is None:
+                    session.add(IndustryCompany(**_build_live_industry_snapshot()["company"]))
+
+                if session.query(IndustryTrend.id).first() is None:
+                    session.add_all([IndustryTrend(**item) for item in _INDUSTRY_TRENDS_SEED])
+
+                if session.query(IndustryCompetitor.id).first() is None:
+                    session.add_all([IndustryCompetitor(**item) for item in _INDUSTRY_COMPETITOR_SEED])
+
+                if session.query(IndustryInsight.id).first() is None:
+                    session.add_all([IndustryInsight(**item) for item in _INDUSTRY_INSIGHT_SEED])
+
+                if session.query(IndustryOpportunity.id).first() is None:
+                    session.add_all([IndustryOpportunity(**item) for item in _INDUSTRY_OPPORTUNITY_SEED])
+
+                session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 def get_db_session() -> Session:
     return SessionLocal()
 
@@ -554,7 +1621,7 @@ def get_all_trends(limit: int = 100, region: str | None = None) -> list[dict]:
         query = session.query(Trend)
         region_value = _normalize_region_value(region)
         if region_value and region_value.lower() != "global":
-            query = query.filter((Trend.region == region_value) | (Trend.region.is_(None)))
+            query = query.filter((func.lower(Trend.region) == region_value.lower()) | (Trend.region.is_(None)))
         rows = query.order_by(Trend.fetched_at.desc(), Trend.id.desc()).limit(limit).all()
         return [_trend_to_dict(row) for row in rows]
     finally:
@@ -630,6 +1697,456 @@ def _trend_to_dict(row: Trend | None) -> dict | None:
         "analysis_payload": row.analysis_payload,
         "summary": summary,
     }
+
+
+def get_industry_company() -> dict | None:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        row = session.query(IndustryCompany).order_by(IndustryCompany.last_updated.desc().nullslast(), IndustryCompany.updated_at.desc(), IndustryCompany.id.desc()).first()
+        return _industry_company_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def get_industry_trends(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = session.query(IndustryLiveTrend).order_by(IndustryLiveTrend.momentum_score.desc(), IndustryLiveTrend.growth_score.desc(), IndustryLiveTrend.id.desc()).limit(limit).all()
+        return [_industry_live_trend_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_competitors(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = session.query(IndustryCompetitorActivity).order_by(IndustryCompetitorActivity.momentum_score.desc(), IndustryCompetitorActivity.id.desc()).limit(limit).all()
+        return [_industry_competitor_activity_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_insights(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = (
+            session.query(IndustryInsight)
+            .order_by(IndustryInsight.created_at.desc(), IndustryInsight.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return [_industry_insight_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_opportunities(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = (
+            session.query(IndustryOpportunity)
+            .order_by(IndustryOpportunity.opportunity_score.desc(), IndustryOpportunity.updated_at.desc(), IndustryOpportunity.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return [_industry_opportunity_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def _industry_company_to_dict(row: IndustryCompany | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "company_name": row.company_name,
+        "website": row.website,
+        "linkedin_url": row.linkedin_url,
+        "headquarters": row.headquarters,
+        "founded_year": row.founded_year,
+        "company_size": row.company_size,
+        "overview": row.overview,
+        "core_focus_areas": row.core_focus_areas or [],
+        "industry_positioning": row.industry_positioning,
+        "strategic_themes": row.strategic_themes or [],
+        "source_notes": row.source_notes or [],
+        "recent_strategic_themes": row.recent_strategic_themes or [],
+        "focus_keywords": row.focus_keywords or [],
+        "market_positioning": row.market_positioning,
+        "content_themes": row.content_themes or [],
+        "company_summary": row.company_summary or row.overview,
+        "strategic_direction": row.strategic_direction,
+        "market_narrative": row.market_narrative,
+        "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_live_trend_to_dict(row: IndustryLiveTrend | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "trend_name": row.trend_name,
+        "category": row.category,
+        "momentum_score": row.momentum_score,
+        "growth_score": row.growth_score,
+        "source_count": row.source_count,
+        "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+        "executive_summary": row.executive_summary,
+        "signal_strength": row.signal_strength,
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_keyword_to_dict(row: IndustryKeyword | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "keyword": row.keyword,
+        "keyword_group": row.keyword_group,
+        "momentum_score": row.momentum_score,
+        "growth_score": row.growth_score,
+        "source_count": row.source_count,
+        "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+        "executive_summary": row.executive_summary,
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_competitor_activity_to_dict(row: IndustryCompetitorActivity | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "name": row.name,
+        "focus_area": row.focus_area,
+        "activity_summary": row.activity_summary,
+        "momentum_score": row.momentum_score,
+        "strategic_position": row.strategic_position,
+        "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_recommendation_to_dict(row: IndustryRecommendation | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "trend": row.trend,
+        "reason": row.reason,
+        "impact": row.impact,
+        "recommended_action": row.recommended_action,
+        "confidence_score": row.confidence_score,
+        "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_report_to_dict(row: IndustryReport | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "report_key": row.report_key,
+        "week_label": row.week_label,
+        "top_trends": row.top_trends or [],
+        "competitor_highlights": row.competitor_highlights or [],
+        "strategic_risks": row.strategic_risks or [],
+        "strategic_opportunities": row.strategic_opportunities or [],
+        "executive_recommendations": row.executive_recommendations or [],
+        "generated_at": row.generated_at.isoformat() if row.generated_at else None,
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_insight_to_dict(row: IndustryInsight | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "insight_title": row.insight_title,
+        "what_is_trending": row.what_is_trending,
+        "why_it_matters": row.why_it_matters,
+        "business_impact": row.business_impact,
+        "recommended_action": row.recommended_action,
+        "priority": row.priority,
+        "insight_type": row.insight_type,
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _industry_opportunity_to_dict(row: IndustryOpportunity | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "opportunity_name": row.opportunity_name,
+        "trend_name": row.trend_name,
+        "summary": row.summary,
+        "target_buyer": row.target_buyer,
+        "business_value": row.business_value,
+        "urgency": row.urgency,
+        "opportunity_score": row.opportunity_score,
+        "priority_score": row.opportunity_score,
+        "confidence_score": row.confidence_score,
+        "impact_score": row.opportunity_score,
+        "confidence_reason": row.confidence_reason,
+        "evidence_count": row.evidence_count,
+        "source_count": row.source_count,
+        "source_names": row.source_names or [],
+        "source_timestamps": row.source_timestamps or [],
+        "evidence_sources": row.evidence_sources or [],
+        "supporting_evidence": row.supporting_evidence or [],
+        "signal_inputs": row.signal_inputs or {},
+        "source_notes": row.source_notes or [],
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def refresh_industry_live_data(force: bool = False) -> dict:
+    from backend.services.industry_intelligence_service import industry_intelligence_service
+
+    return industry_intelligence_service.refresh(force=force)
+
+
+def get_industry_live_trends(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = session.query(IndustryLiveTrend).order_by(IndustryLiveTrend.momentum_score.desc(), IndustryLiveTrend.growth_score.desc(), IndustryLiveTrend.id.desc()).limit(limit).all()
+        return [_industry_live_trend_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_keywords(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = session.query(IndustryKeyword).order_by(IndustryKeyword.keyword_group.asc(), IndustryKeyword.growth_score.desc(), IndustryKeyword.id.asc()).limit(limit).all()
+        return [_industry_keyword_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_competitor_activity(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = session.query(IndustryCompetitorActivity).order_by(IndustryCompetitorActivity.momentum_score.desc(), IndustryCompetitorActivity.id.desc()).limit(limit).all()
+        return [_industry_competitor_activity_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_recommendations(limit: int = 50) -> list[dict]:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        rows = session.query(IndustryRecommendation).order_by(IndustryRecommendation.confidence_score.desc(), IndustryRecommendation.id.desc()).limit(limit).all()
+        return [_industry_recommendation_to_dict(row) for row in rows]
+    finally:
+        session.close()
+
+
+def get_industry_report() -> dict | None:
+    refresh_industry_live_data()
+    session = get_db_session()
+    try:
+        row = session.query(IndustryReport).order_by(IndustryReport.generated_at.desc(), IndustryReport.id.desc()).first()
+        return _industry_report_to_dict(row) if row else None
+    finally:
+        session.close()
+
+
+def _trend_history_to_dict(row: TrendHistory | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "keyword": row.keyword,
+        "trend_score": row.trend_score,
+        "growth_score": row.growth_score,
+        "confidence_score": row.confidence_score,
+        "momentum": row.momentum,
+        "source_count": row.source_count,
+        "news_count": row.news_count,
+        "rag_match_count": row.rag_match_count,
+        "competitor_mention_count": row.competitor_mention_count,
+        "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+    }
+
+
+def save_trend_history(entries: Iterable[dict]) -> int:
+    inserted = 0
+    session = get_db_session()
+    try:
+        for entry in entries:
+            keyword = str(entry.get("keyword") or "").strip()
+            timestamp = entry.get("timestamp")
+            if not keyword:
+                continue
+            if not isinstance(timestamp, datetime):
+                timestamp = datetime.utcnow()
+            minute_start = timestamp.replace(second=0, microsecond=0)
+            minute_end = minute_start + timedelta(minutes=1)
+            existing = (
+                session.query(TrendHistory.id)
+                .filter(
+                    TrendHistory.keyword == keyword,
+                    TrendHistory.timestamp >= minute_start,
+                    TrendHistory.timestamp < minute_end,
+                )
+                .first()
+            )
+            if existing:
+                continue
+            session.add(
+                TrendHistory(
+                    keyword=keyword,
+                    trend_score=_to_float(entry.get("trend_score")) or 0.0,
+                    growth_score=_to_float(entry.get("growth_score")) or 0.0,
+                    confidence_score=_to_float(entry.get("confidence_score")) or 0.0,
+                    momentum=str(entry.get("momentum") or "Stable"),
+                    source_count=_to_int(entry.get("source_count")) or 0,
+                    news_count=_to_int(entry.get("news_count")) or 0,
+                    rag_match_count=_to_int(entry.get("rag_match_count")) or 0,
+                    competitor_mention_count=_to_int(entry.get("competitor_mention_count")) or 0,
+                    timestamp=timestamp,
+                )
+            )
+            inserted += 1
+        session.commit()
+        return inserted
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def _trend_direction(delta: float, threshold: float = 5.0) -> tuple[str, str]:
+    if delta >= threshold:
+        return "rising", "Rising strongly" if delta >= 10 else "Rising"
+    if delta <= -threshold:
+        return "falling", "Falling strongly" if delta <= -10 else "Falling"
+    return "stable", "Stable"
+
+
+def get_trend_history(keyword: str, range_label: str = "7d", limit: int = 20) -> dict | None:
+    keyword_text = str(keyword or "").strip()
+    if not keyword_text:
+        return None
+    window = {
+        "24h": timedelta(hours=24),
+        "7d": timedelta(days=7),
+        "30d": timedelta(days=30),
+    }.get(str(range_label or "7d").lower(), timedelta(days=7))
+    now = datetime.now(timezone.utc)
+    start = now - window
+    session = get_db_session()
+    try:
+        rows = (
+            session.query(TrendHistory)
+            .filter(TrendHistory.keyword == keyword_text, TrendHistory.timestamp >= start)
+            .order_by(TrendHistory.timestamp.desc(), TrendHistory.id.desc())
+            .limit(max(2, limit))
+            .all()
+        )
+        history = [_trend_history_to_dict(row) for row in rows]
+        current = history[0] if history else None
+        previous = history[1] if len(history) > 1 else current
+        current_score = (_to_float(current.get("trend_score")) or 0.0) if current else 0.0
+        previous_score = (_to_float(previous.get("trend_score")) or current_score) if previous else current_score
+        delta = round(current_score - previous_score, 1)
+        direction, movement_label = _trend_direction(delta)
+        return {
+            "keyword": keyword_text,
+            "current_score": round(current_score, 1),
+            "previous_score": round(previous_score, 1),
+            "delta": round(delta, 1),
+            "direction": direction,
+            "movement_label": movement_label,
+            "history": list(reversed(history)),
+            "range": str(range_label or "7d").lower(),
+            "updated_at": current.get("timestamp") if current else None,
+        }
+    finally:
+        session.close()
+
+
+def get_trend_history_leaderboard(range_label: str = "7d", limit: int = 5) -> dict:
+    window = {
+        "24h": timedelta(hours=24),
+        "7d": timedelta(days=7),
+        "30d": timedelta(days=30),
+    }.get(str(range_label or "7d").lower(), timedelta(days=7))
+    now = datetime.now(timezone.utc)
+    start = now - window
+    session = get_db_session()
+    try:
+        rows = (
+            session.query(TrendHistory)
+            .filter(TrendHistory.timestamp >= start)
+            .order_by(TrendHistory.keyword.asc(), TrendHistory.timestamp.desc(), TrendHistory.id.desc())
+            .all()
+        )
+        grouped: dict[str, list[TrendHistory]] = {}
+        for row in rows:
+            grouped.setdefault(row.keyword, []).append(row)
+        movements: list[dict] = []
+        for keyword, items in grouped.items():
+            current = items[0]
+            previous = items[1] if len(items) > 1 else current
+            current_score = _to_float(current.trend_score) or 0.0
+            previous_score = _to_float(previous.trend_score) or current_score
+            delta = round(current_score - previous_score, 1)
+            direction, movement_label = _trend_direction(delta)
+            movements.append(
+                {
+                    "keyword": keyword,
+                    "current_score": round(current_score, 1),
+                    "previous_score": round(previous_score, 1),
+                    "delta": round(delta, 1),
+                    "direction": direction,
+                    "movement_label": movement_label,
+                    "history": [_trend_history_to_dict(item) for item in items[:limit]][::-1],
+                }
+            )
+        rising = sorted([item for item in movements if item["direction"] == "rising"], key=lambda item: (item["delta"], item["current_score"]), reverse=True)[:limit]
+        falling = sorted([item for item in movements if item["direction"] == "falling"], key=lambda item: (item["delta"], item["current_score"]))[:limit]
+        stable = sorted([item for item in movements if item["direction"] == "stable"], key=lambda item: item["current_score"], reverse=True)[:limit]
+        return {
+            "range": str(range_label or "7d").lower(),
+            "top_rising_trends": rising,
+            "top_falling_trends": falling,
+            "stable_trends": stable,
+            "generated_at": now.isoformat(),
+        }
+    finally:
+        session.close()
 
 
 def _to_int(value) -> int | None:

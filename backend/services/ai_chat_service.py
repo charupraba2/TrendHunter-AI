@@ -23,7 +23,7 @@ class AIChatService:
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
         self._openai_client = self._load_openai_client() if self.openai_api_key else None
         self._gemini_unavailable = False
-        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     def chat(self, payload: dict[str, Any]) -> dict[str, Any]:
         normalized = self._normalize_payload(payload or {})

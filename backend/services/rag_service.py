@@ -99,7 +99,7 @@ class RAGService:
 
         prompt = self._build_prompt(title, description, context)
         try:
-            model = self.gemini_service._client.GenerativeModel("gemini-1.5-flash")
+            model = self.gemini_service._client.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
             raw_text = getattr(response, "text", "")
             parsed = self._parse_json(raw_text)

@@ -60,6 +60,8 @@ function setupDashboard(root) {
     postPerformanceGrowth: null,
     postPerformanceLifecycle: null,
   };
+  const workspace = root.dataset.workspace || "trend";
+  const defaultDashboardTab = root.dataset.defaultDashboardTab || (workspace === "industry" ? "industry-intelligence" : "dashboard");
   const apiUrl = root.dataset.trendsApi || "/api/trends";
   const grid = document.getElementById("trend-grid");
   const status = document.getElementById("dashboard-status");
@@ -101,19 +103,12 @@ function setupDashboard(root) {
   const refreshBtn = document.getElementById("refresh-dashboard-btn");
   const dashboardLoader = document.getElementById("dashboard-loader");
   const statusText = document.querySelector("#dashboard-status .dashboard-status__text");
-  const searchInput = document.getElementById("trend-search");
-  if (dashboardWorkspaceSearch && searchInput) {
-    dashboardWorkspaceSearch.value = searchInput.value || "";
-    dashboardWorkspaceSearch.addEventListener("input", (event) => {
-      searchInput.value = event.target.value;
-      searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
+  const trendTopicInput = document.getElementById("trend-topic");
+  restoreIndustryExportContext();
   const platformFilter = document.getElementById("platform-filter");
-  const viralityFilter = document.getElementById("virality-filter");
-  const sentimentFilter = document.getElementById("sentiment-filter");
-  const sortFilter = document.getElementById("sort-filter");
   const trendModeSelect = document.getElementById("trend-mode") || document.getElementById("trendMode");
+  const fetchTopicTrendsBtn = document.getElementById("fetch-topic-trends-btn");
+  const refreshTrendRadarBtn = document.getElementById("refresh-trend-radar-btn");
   const statTotal = document.getElementById("stat-total");
   const statHighViral = document.getElementById("stat-high-viral");
   const statActiveAlerts = document.getElementById("stat-active-alerts");
@@ -242,6 +237,115 @@ function setupDashboard(root) {
   const competitorAnalyzeBtn = document.getElementById("competitorBtn") || document.getElementById("competitor-analyze-btn");
   const competitorResultsEmpty = document.getElementById("competitor-results-empty");
   const competitorResultsContent = document.getElementById("competitorResult") || document.getElementById("competitor-results-content");
+  const industryRefreshBtn = document.getElementById("industry-refresh-btn");
+  const industryReportPdfBtn = document.getElementById("industry-report-pdf-btn");
+  const industryCommandbar = document.querySelector(".industry-commandbar");
+  const industrySourceCoverageStrip = document.getElementById("industry-source-coverage-strip");
+  const industrySourceCompany = document.getElementById("industry-source-company");
+  const industrySourceLinkedin = document.getElementById("industry-source-linkedin");
+  const industrySourceNews = document.getElementById("industry-source-news");
+  const industrySourceCompetitors = document.getElementById("industry-source-competitors");
+  const industrySourceInsights = document.getElementById("industry-source-insights");
+  const industrySourceLastRefreshed = document.getElementById("industry-source-last-refreshed");
+  const industrySearchBox = document.getElementById("industrySearchBox");
+  const industrySearchInput = document.getElementById("industrySearchInput");
+  const industrySearchButton = document.getElementById("industrySearchBtn");
+  const industryProductImpactSection = document.getElementById("industry-product-impact");
+  const industryProductImpactName = document.getElementById("industryProductImpactName");
+  const industryProductImpactDescription = document.getElementById("industryProductImpactDescription");
+  const industryProductImpactBtn = document.getElementById("industryProductImpactBtn");
+  const industryProductImpactResultCard = document.getElementById("industry-product-impact-result-card");
+  const industryProductImpactResultBody = document.getElementById("industry-product-impact-result-body");
+  const industrySearchResultCard = document.getElementById("industry-search-result-card");
+  const industrySearchQuery = document.getElementById("industry-search-query");
+  const industrySearchTrendScore = document.getElementById("industry-search-trend-score");
+  const industrySearchMomentum = document.getElementById("industry-search-momentum");
+  const industrySearchGrowthScore = document.getElementById("industry-search-growth-score");
+  const industrySearchConfidence = document.getElementById("industry-search-confidence");
+  const industrySearchSummary = document.getElementById("industry-search-summary");
+  const industrySearchRecommendation = document.getElementById("industry-search-recommendation");
+  const industrySearchKeywords = document.getElementById("industry-search-keywords");
+  const industrySearchEvidence = document.getElementById("industry-search-evidence");
+  const industrySearchNews = document.getElementById("industry-search-news");
+  const industrySearchCompetitors = document.getElementById("industry-search-competitors");
+  const industrySearchHistoryCurrent = document.getElementById("industry-search-history-current");
+  const industrySearchHistoryPrevious = document.getElementById("industry-search-history-previous");
+  const industrySearchHistoryDelta = document.getElementById("industry-search-history-delta");
+  const industrySearchHistoryDirection = document.getElementById("industry-search-history-direction");
+  const industrySearchHistoryStrip = document.getElementById("industry-search-history-strip");
+  const industryCompareBox = document.getElementById("industryCompareBox");
+  const industryCompareQ1 = document.getElementById("industryCompareQ1");
+  const industryCompareQ2 = document.getElementById("industryCompareQ2");
+  const industryCompareBtn = document.getElementById("industryCompareBtn");
+  const industryCompareResultCard = document.getElementById("industry-compare-result-card");
+  const industryCompareTitle = document.getElementById("industry-compare-title");
+  const industryCompareTrendScore = document.getElementById("industry-compare-trend-score");
+  const industryCompareMomentum = document.getElementById("industry-compare-momentum");
+  const industryCompareGrowthScore = document.getElementById("industry-compare-growth-score");
+  const industryCompareKeywords = document.getElementById("industry-compare-keywords");
+  const industryCompareEvidence = document.getElementById("industry-compare-evidence");
+  const industryCompareSummary = document.getElementById("industry-compare-summary");
+  const industryCompareStrengths = document.getElementById("industry-compare-strengths");
+  const industryCompareWeaknesses = document.getElementById("industry-compare-weaknesses");
+  const industryCompareNews = document.getElementById("industry-compare-news");
+  const industryCompareLeftWinsLabel = document.getElementById("industry-compare-left-wins-label");
+  const industryCompareRightWinsLabel = document.getElementById("industry-compare-right-wins-label");
+  const industryCompareLeftWins = document.getElementById("industry-compare-left-wins");
+  const industryCompareRightWins = document.getElementById("industry-compare-right-wins");
+  const industryCompareMissingCapabilities = document.getElementById("industry-compare-missing-capabilities");
+  const industryComparePositioningGaps = document.getElementById("industry-compare-positioning-gaps");
+  const industryCompareReadinessGaps = document.getElementById("industry-compare-readiness-gaps");
+  const industryCompareStrategicRecommendations = document.getElementById("industry-compare-strategic-recommendations");
+  const industryCompareImmediateActions = document.getElementById("industry-compare-immediate-actions");
+  const industryCompareNextActions = document.getElementById("industry-compare-next-actions");
+  const industryCompareLongTermActions = document.getElementById("industry-compare-long-term-actions");
+  const industryCompareRoadmap30 = document.getElementById("industry-compare-roadmap-30");
+  const industryCompareRoadmap60 = document.getElementById("industry-compare-roadmap-60");
+  const industryCompareRoadmap90 = document.getElementById("industry-compare-roadmap-90");
+  const industryCompareForecast = document.getElementById("industry-compare-forecast");
+  const industryCompareReadiness = document.getElementById("industry-compare-readiness");
+  const industryCompareBoardRecommendations = document.getElementById("industry-compare-board-recommendations");
+  const industryLeaderboardModels = document.getElementById("industry-leaderboard-models");
+  const industryLeaderboardCompanies = document.getElementById("industry-leaderboard-companies");
+  const industryLeaderboardConcepts = document.getElementById("industry-leaderboard-concepts");
+  const industryCompanyName = document.getElementById("industry-company-name");
+  const industryCompanyOverview = document.getElementById("industry-company-overview");
+  const industryCompanyOverviewCard = document.getElementById("industry-company-overview-card");
+  const industryCompanyFocus = document.getElementById("industry-company-focus");
+  const industryCompanyPositioning = document.getElementById("industry-company-positioning");
+  const industryCompanyThemes = document.getElementById("industry-company-themes");
+  const industryCompanyLocation = document.getElementById("industry-company-location");
+  const industryCompanySize = document.getElementById("industry-company-size");
+  const industryTrendCount = document.getElementById("industry-trend-count");
+  const industryCompetitorCount = document.getElementById("industry-competitor-count");
+  const industryInsightCount = document.getElementById("industry-insight-count");
+  const industryOpportunityCount = document.getElementById("industry-opportunity-count");
+  const industryTrendsGrid = document.getElementById("industry-trends-grid");
+  const industryCompetitorsGrid = document.getElementById("industry-competitors-grid");
+  const industryInsightsGrid = document.getElementById("industry-insights-grid");
+  const industryOpportunitiesGrid = document.getElementById("industry-opportunities-grid");
+  const industryRecommendationsGrid = document.getElementById("industry-recommendations-grid");
+  const industryKeywordsGovernance = document.getElementById("industry-keywords-governance");
+  const industryKeywordsGrowing = document.getElementById("industry-keywords-growing");
+  const industryKeywordsAdoption = document.getElementById("industry-keywords-adoption");
+  const industryReportTopTrends = document.getElementById("industry-report-top-trends");
+  const industryReportCompetitors = document.getElementById("industry-report-competitors");
+  const industryReportRisks = document.getElementById("industry-report-risks");
+  const industryReportOpportunities = document.getElementById("industry-report-opportunities");
+  const industryReportRecommendations = document.getElementById("industry-report-recommendations");
+  const industryExecutiveShell = document.getElementById("industry-dashboard");
+  const industrySearchSection = document.getElementById("industry-search");
+  const industryCompareSection = document.getElementById("industry-compare");
+  const industrySummarySection = document.getElementById("industry-summary");
+  const industryKpisSection = document.getElementById("industry-kpis");
+  const industryLeaderboardsSection = document.getElementById("industry-leaderboards");
+  const industryTrendsSection = document.getElementById("industry-trends");
+  const industryCompetitorsSection = document.getElementById("industry-competitors");
+  const industryInsightsSection = document.getElementById("industry-insights");
+  const industryOpportunitiesSection = document.getElementById("industry-opportunities");
+  const industryRecommendationsSection = document.getElementById("industry-recommendations");
+  const industryReportsSection = document.getElementById("industry-reports");
+  const industryKeywordsSection = document.getElementById("industry-keywords");
   const strategyPanel = document.getElementById("strategy-panel");
   const strategyBtn = document.getElementById("strategyBtn");
   const strategyStatus = document.getElementById("strategyStatus");
@@ -292,6 +396,35 @@ function setupDashboard(root) {
     dashboardAllTrendsSnapshot: [],
     alerts: [],
     currentTrends: [],
+    industry: {
+      company: null,
+      trends: [],
+      competitors: [],
+      insights: [],
+      opportunities: [],
+      keywords: [],
+      recommendations: [],
+      report: null,
+      snapshot: null,
+      lastUpdated: null,
+      sourceCoverage: null,
+      comparison: null,
+      trend: null,
+      exportContext: {
+        type: "snapshot",
+        payload: null,
+        updatedAt: null,
+      },
+      search: {
+        query: "",
+        result: null,
+        lastUpdated: null,
+        loaded: false,
+      },
+      productImpact: null,
+      refreshTimer: null,
+      loaded: false,
+    },
     filters: {
       search: "",
       platform: "all",
@@ -343,11 +476,20 @@ function setupDashboard(root) {
     const aliases = {
       overview: "dashboard",
       dashboard: "dashboard",
+      "industry": "industry-intelligence",
+      "industry-intelligence": "industry-intelligence",
+      "trend-radar": "intelligence",
       analyze: "analyze",
       trends: "intelligence",
       intelligence: "intelligence",
-      strategy: "competitor",
+      strategy: "strategy",
+      "ai-strategy": "strategy",
+      "product-impact": "product-impact",
       competitor: "competitor",
+      search: "search",
+      opportunities: "opportunities",
+      history: "history",
+      reports: "reports",
       performance: "forecast",
       forecast: "forecast",
       assistant: "assistant",
@@ -370,6 +512,111 @@ function setupDashboard(root) {
       section.classList.toggle("is-active", isActive);
       section.hidden = !isActive;
     });
+    if (dashboardGreetingTitle) {
+      dashboardGreetingTitle.textContent = nextTab === "industry-intelligence"
+        ? "Industry Intelligence Center"
+        : workspace === "industry"
+          ? "Industry Intelligence Snapshot"
+          : "Trend Intelligence Center";
+    }
+    if (dashboardGreetingMeta) {
+      dashboardGreetingMeta.textContent = nextTab === "industry-intelligence"
+        ? "Giggso mode - AI governance, security, and enterprise AI"
+        : workspace === "industry"
+          ? "Giggso mode - enterprise AI, governance, and market intelligence"
+          : "Market signals, trend movement, and opportunity tracking.";
+    }
+    if (dashboardModePill) {
+      dashboardModePill.textContent = nextTab === "industry-intelligence"
+        ? "Industry Intelligence"
+        : workspace === "industry"
+          ? "Industry Overview"
+          : "Trend Overview";
+    }
+    if (dashboardActivePill) {
+      dashboardActivePill.textContent = nextTab === "industry-intelligence"
+        ? "Giggso Reference View"
+        : workspace === "industry"
+          ? "Enterprise Market Signals"
+          : "Creator Market Signals";
+    }
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+  }
+
+  function normalizeIndustrySection(sectionName) {
+    const value = String(sectionName || "executive").toLowerCase();
+    const aliases = {
+      executive: "executive",
+      dashboard: "executive",
+      search: "search",
+      "product-impact": "product-impact",
+      competitor: "competitors",
+      competitors: "competitors",
+      opportunities: "opportunities",
+      reports: "reports",
+    };
+    return aliases[value] || "executive";
+  }
+
+  function setVisible(industryElement, shouldShow) {
+    if (!industryElement) return;
+    industryElement.hidden = !shouldShow;
+    industryElement.classList.toggle("is-active", shouldShow);
+    industryElement.classList.toggle("active", shouldShow);
+  }
+
+  function showIndustrySection(sectionName) {
+    const nextSection = normalizeIndustrySection(sectionName);
+    state.industry = state.industry || {};
+    state.industry.activeSection = nextSection;
+    state.activeTab = nextSection;
+
+    const allSections = [
+      industryCommandbar,
+      industrySourceCoverageStrip,
+      industrySearchSection,
+      industryProductImpactSection,
+      industryCompareSection,
+      industrySummarySection,
+      industryKpisSection,
+      industryLeaderboardsSection,
+      industryTrendsSection,
+      industryCompetitorsSection,
+      industryInsightsSection,
+      industryOpportunitiesSection,
+      industryRecommendationsSection,
+      industryReportsSection,
+      industryKeywordsSection,
+    ];
+
+    allSections.forEach((section) => setVisible(section, false));
+
+    const visibleSections = {
+      executive: [industryCommandbar, industrySourceCoverageStrip, industrySummarySection, industryKpisSection, industryLeaderboardsSection, industryTrendsSection, industryInsightsSection, industryKeywordsSection],
+      search: [industrySearchSection],
+      "product-impact": [industryProductImpactSection],
+      competitors: [industryCompareSection, industryCompetitorsSection],
+      opportunities: [industryOpportunitiesSection, industryRecommendationsSection],
+      reports: [industryReportsSection],
+    };
+
+    (visibleSections[nextSection] || visibleSections.executive).forEach((section) => setVisible(section, true));
+    if (nextSection === "product-impact" && state.industry?.productImpact) {
+      renderIndustryProductImpactResult(state.industry.productImpact);
+    }
+
+    dashboardTabs.forEach((button) => {
+      const isActive = normalizeIndustrySection(button.dataset.dashboardTab) === nextSection;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    if (industryExecutiveShell) {
+      industryExecutiveShell.hidden = false;
+    }
+
     window.requestAnimationFrame(() => {
       window.dispatchEvent(new Event("resize"));
     });
@@ -377,7 +624,7 @@ function setupDashboard(root) {
 
   function setLoading(isLoading) {
     state.loading = isLoading;
-    [fetchRedditBtn, fetchGoogleBtn, fetchLiveBtn, refreshCurrentTrendsBtn, analyzeTrendsBtn, ragAnalyzeBtn, forecastTrendsBtn, generateContentBtn, generateAlertsBtn, refreshBtn, creatorAnalyzeBtn, creatorDemoBtn, generateLinkedInBtn, postLinkedInBtn, exportPdfBtn, competitorAnalyzeBtn, currentTrendsRefreshBtn, workspaceRefreshBtn, strategyBtn, clearAnalysisBtn, performanceTrackBtn].forEach((button) => {
+    [fetchRedditBtn, fetchGoogleBtn, fetchLiveBtn, refreshCurrentTrendsBtn, analyzeTrendsBtn, ragAnalyzeBtn, forecastTrendsBtn, generateContentBtn, generateAlertsBtn, refreshBtn, creatorAnalyzeBtn, creatorDemoBtn, generateLinkedInBtn, postLinkedInBtn, exportPdfBtn, competitorAnalyzeBtn, currentTrendsRefreshBtn, workspaceRefreshBtn, strategyBtn, clearAnalysisBtn, performanceTrackBtn, industryRefreshBtn, industryReportPdfBtn, industryProductImpactBtn].forEach((button) => {
       if (button) button.disabled = isLoading;
     });
     if (dashboardLoader) {
@@ -760,6 +1007,95 @@ function setupDashboard(root) {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function normalizeOpportunityText(value) {
+    return String(value ?? "").replace(/\s+/g, " ").trim();
+  }
+
+  function hasMeaningfulOpportunityText(value) {
+    const text = normalizeOpportunityText(value);
+    if (!text) return false;
+    return !/^(opportunity|opportunities|unknown|n\/a|na|-+)$/i.test(text);
+  }
+
+  function getOpportunityPriorityBucket(item = {}) {
+    const labels = [item.urgency, item.priority, item.priority_label, item.priority_text]
+      .map((value) => normalizeOpportunityText(value).toLowerCase())
+      .filter(Boolean);
+    if (labels.some((label) => /high|urgent|immediate|critical/.test(label))) return "high";
+    if (labels.some((label) => /medium|near[- ]?term|moderate|balanced/.test(label))) return "medium";
+    if (labels.some((label) => /low|long[- ]?term|future|exploratory/.test(label))) return "low";
+    return "";
+  }
+
+  function getOpportunityScoreValue(item = {}) {
+    const scoreFields = ["opportunity_score", "priority_score", "confidence_score", "impact_score"];
+    for (const field of scoreFields) {
+      const rawValue = item?.[field];
+      if (rawValue === undefined || rawValue === null || rawValue === "") continue;
+      const numericValue = Number(rawValue);
+      if (Number.isFinite(numericValue)) {
+        return Math.max(0, Math.min(100, numericValue));
+      }
+    }
+
+    const priorityBucket = getOpportunityPriorityBucket(item);
+    if (priorityBucket === "high") return 90;
+    if (priorityBucket === "medium") return 65;
+    if (priorityBucket === "low") return 40;
+    return 0;
+  }
+
+  function getOpportunityTitle(item = {}) {
+    const directTitle = [
+      item.opportunity_name,
+      item.opportunity_title,
+      item.title,
+      item.name,
+      item.opportunity,
+    ].find((value) => hasMeaningfulOpportunityText(value));
+    if (directTitle) return normalizeOpportunityText(directTitle);
+
+    const trendName = normalizeOpportunityText(item.trend_name || item.trend);
+    if (trendName && !/^(opportunity|opportunities)$/i.test(trendName)) {
+      return trendName;
+    }
+
+    const derivedTitle = normalizeOpportunityText(item.summary || item.reason || item.business_value || item.impact || item.recommended_action);
+    if (derivedTitle) {
+      return derivedTitle.length > 72 ? `${derivedTitle.slice(0, 69).trim()}...` : derivedTitle;
+    }
+
+    return "Opportunity";
+  }
+
+  function sanitizeIndustryUrl(value) {
+    const url = String(value || "").trim();
+    if (!url) return "";
+    try {
+      const parsed = new URL(url, window.location.origin);
+      return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function renderIndustryNewsCard(newsItem = {}) {
+    const title = newsItem.headline || newsItem.title || "News";
+    const source = newsItem.source || "News";
+    const published = newsItem.published_date || newsItem.date || "";
+    const dateLabel = published ? formatDate(published) : "";
+    const url = sanitizeIndustryUrl(newsItem.url);
+    const titleMarkup = url
+      ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+      : escapeHtml(title);
+    return `
+      <div class="industry-report-list__item">
+        <strong>${titleMarkup}</strong>
+        <span>${escapeHtml([source, dateLabel].filter(Boolean).join(" • "))}</span>
+      </div>
+    `;
   }
 
   function badgeKey(value) {
@@ -1364,15 +1700,16 @@ function setupDashboard(root) {
       const total = trends.length;
       const highViralCount = trends.filter((trend) => safeNumber(trend.virality_score) >= 75).length;
       const opportunities = trends.filter((trend) => safeNumber(trend.opportunity_score) >= 75).length;
+      const isIndustryMode = workspace === "industry" || state.activeTab === "industry-intelligence";
 
-      if (dashboardGreetingTitle) dashboardGreetingTitle.textContent = "Modern Trend Intelligence Center";
-      if (dashboardGreetingMeta) {
+      if (dashboardGreetingTitle && !isIndustryMode) dashboardGreetingTitle.textContent = "Modern Trend Intelligence Center";
+      if (dashboardGreetingMeta && !isIndustryMode) {
         dashboardGreetingMeta.textContent = isFallback
           ? "Sample intelligence loaded while live trend data refreshes."
           : `${getDashboardModeLabel()} • ${total} Active Trends`;
       }
-      if (dashboardModePill) dashboardModePill.textContent = getDashboardModeLabel();
-      if (dashboardActivePill) dashboardActivePill.textContent = `${total} Active Trends`;
+      if (dashboardModePill && !isIndustryMode) dashboardModePill.textContent = getDashboardModeLabel();
+      if (dashboardActivePill && !isIndustryMode) dashboardActivePill.textContent = `${total} Active Trends`;
       if (dashboardTrendCountPill) dashboardTrendCountPill.textContent = `🔥 ${total} Trends`;
       if (dashboardHighViralPill) dashboardHighViralPill.textContent = `📈 ${highViralCount} High Viral`;
       if (dashboardOpportunityPill) dashboardOpportunityPill.textContent = `🎯 ${opportunities} Opportunities`;
@@ -1403,29 +1740,29 @@ function setupDashboard(root) {
     const keywordItems = Array.isArray(payload?.trend_keywords) && payload.trend_keywords.length ? payload.trend_keywords : [];
     const trendItems = Array.isArray(payload?.items) ? payload.items : [];
     const items = keywordItems.length ? keywordItems : trendItems;
-    const fallbackItems = [
-      { keyword: "AI video editing workflows", count: 94, source_label: "Sample" },
-      { keyword: "AI agents for students", count: 89, source_label: "Sample" },
-      { keyword: "Prompt engineering tools", count: 84, source_label: "Sample" },
-    ];
-    const displayItems = items.length ? items : fallbackItems;
     state.currentTrends = trendItems.length ? trendItems : items;
     state.ws.currentTrendSnapshot = payload || null;
+    const topicLabel = payload?.selected_topic || payload?.topic || String(trendTopicInput?.value || "").trim();
     const regionLabel = payload?.region_label || payload?.selected_region || payload?.region || trendRegion?.value || "India";
+    const platformLabel = payload?.selected_platform || payload?.platform || String(platformFilter?.value || "all").trim();
+    const categoryLabel = payload?.selected_category || payload?.category || String(getSelectedTrendMode() || "ai").trim();
     window.selectedRegion = regionLabel;
     if (trendBoardTitle) {
-      trendBoardTitle.textContent = `Trending Now${regionLabel ? ` for ${regionLabel}` : ""}`;
+      const titlePrefix = platformLabel === "news" ? "Trending News" : "Trending Now";
+      trendBoardTitle.textContent = topicLabel
+        ? `${titlePrefix} for ${topicLabel} in ${regionLabel}`
+        : `${titlePrefix} for ${regionLabel}`;
     }
     if (trendBoardCopy) {
       trendBoardCopy.textContent = items.length
-        ? "Live trend keywords, sources, and signal density for the selected mode."
-        : "Sample trend intelligence is shown while live data loads.";
+        ? topicLabel
+          ? `Live ${categoryLabel} trends, sources, and signal density for ${topicLabel} in ${regionLabel}.`
+          : `Live ${categoryLabel} trends, sources, and signal density for ${regionLabel}.`
+        : `No trends found for selected filters. Try changing Region, Platform, or Category.`;
     }
     if (trendModeNotice) {
       trendModeNotice.hidden = Boolean(items.length);
-      trendModeNotice.textContent = items.length
-        ? ""
-        : "No live trend keywords returned yet. Showing sample trend intelligence.";
+      trendModeNotice.textContent = items.length ? "" : `No trends found for selected filters. Try changing Region, Platform, or Category.`;
     }
     const sourceLabels = Array.isArray(payload?.source_labels) && payload.source_labels.length
       ? payload.source_labels
@@ -1445,15 +1782,1443 @@ function setupDashboard(root) {
 
     const sourceTags = sourceLabels.length
       ? sourceLabels.map((label) => `<span class="trend-tag trend-tag--source">${escapeHtml(label)}</span>`)
-      : [`<span class="trend-tag trend-tag--source">Sample</span>`];
-    const keywordTags = displayItems
-      .map((item) => {
-        const keyword = item.keyword || item.title || item.name || "trend";
-        const count = item.count ?? item.trend_score ?? "";
-        return `<span class="trend-tag">${escapeHtml(keyword)}${count !== "" ? ` <strong>${escapeHtml(count)}</strong>` : ""}</span>`;
-      })
+      : [];
+    const keywordTags = items.length
+      ? items
+          .map((item) => {
+            const keyword = item.keyword || item.title || item.name || "trend";
+            const count = item.count ?? item.trend_score ?? "";
+            return `<span class="trend-tag">${escapeHtml(keyword)}${count !== "" ? ` <strong>${escapeHtml(count)}</strong>` : ""}</span>`;
+          })
+          .join("")
+      : `<div class="empty-state" style="padding: 0.75rem 1rem;"><strong>No trends found for selected filters.</strong><p>Try changing Region, Platform, or Category.</p></div>`;
+    currentTrendsList.innerHTML = items.length ? [...sourceTags, keywordTags].filter(Boolean).join("") : keywordTags;
+  }
+
+  function renderIndustryChips(items = [], emptyLabel = "Loading...") {
+    const values = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!values.length) {
+      return `<span class="industry-chip">${escapeHtml(emptyLabel)}</span>`;
+    }
+    return values.map((value) => `<span class="industry-chip">${escapeHtml(value)}</span>`).join("");
+  }
+
+  function renderIndustryList(items = [], emptyLabel = "No data yet") {
+    const values = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!values.length) {
+      return `<div class="industry-report-list__item"><strong>${escapeHtml(emptyLabel)}</strong></div>`;
+    }
+    return values.map((item) => {
+      if (typeof item === "string") {
+        return `<div class="industry-report-list__item"><strong>${escapeHtml(item)}</strong></div>`;
+      }
+      const title = item.title || item.name || item.label || item.risk || item.opportunity || item.keyword || item.trend || "";
+      const detail = item.detail || item.summary || item.signal || item.response || item.executive_summary || item.activity_summary || item.reason || "";
+      const evidenceParts = [];
+      const evidenceCount = safeNumber(item.evidence_count ?? item.evidenceCount ?? item.article_count ?? 0);
+      const sourceCount = safeNumber(item.source_count ?? item.sourceCount ?? 0);
+      const updatedAt = item.last_updated || item.lastUpdated || item.updated_at || item.created_at || item.timestamp || null;
+      const confidenceReason = item.confidence_reason || item.confidenceReason || "";
+      if (evidenceCount > 0) evidenceParts.push(`Evidence ${evidenceCount.toFixed(0)}`);
+      if (sourceCount > 0) evidenceParts.push(`Sources ${sourceCount.toFixed(0)}`);
+      if (updatedAt) evidenceParts.push(`Updated ${formatDate(updatedAt)}`);
+      if (confidenceReason) evidenceParts.push(confidenceReason);
+      const evidenceDetail = evidenceParts.length ? evidenceParts.join(" • ") : "";
+      return `
+        <div class="industry-report-list__item">
+          <strong>${escapeHtml(title || emptyLabel)}</strong>
+          ${detail ? `<span>${escapeHtml(detail)}</span>` : ""}
+          ${evidenceDetail ? `<span>${escapeHtml(evidenceDetail)}</span>` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderIndustryStructuredList(items = [], emptyLabel = "No data yet", transform = null) {
+    const values = Array.isArray(items) ? items.filter(Boolean) : [];
+    const mapped = typeof transform === "function" ? values.map((item) => transform(item)).filter(Boolean) : values;
+    return renderIndustryList(mapped, emptyLabel);
+  }
+
+  function groupIndustryKeywords(items = []) {
+    const grouped = {
+      "Top AI Governance Keywords": [],
+      "Fastest Growing Keywords": [],
+      "Enterprise Adoption Keywords": [],
+    };
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const bucket = item.keyword_group || "Enterprise Adoption Keywords";
+      if (!grouped[bucket]) grouped[bucket] = [];
+      grouped[bucket].push(item);
+    });
+    return grouped;
+  }
+
+  function renderIndustryCompany(company) {
+    const item = company || {};
+    state.industry.company = item;
+    if (industryCompanyName) industryCompanyName.textContent = item.company_name || "Giggso";
+    const companySummary = item.company_summary || item.overview || "Loading company intelligence...";
+    const marketNarrative = item.market_narrative || "";
+    if (industryCompanyOverview) industryCompanyOverview.textContent = [companySummary, marketNarrative].filter(Boolean).join(" ");
+    if (industryCompanyOverviewCard) industryCompanyOverviewCard.textContent = [companySummary, marketNarrative].filter(Boolean).join(" ");
+    if (industryCompanyPositioning) industryCompanyPositioning.textContent = item.strategic_direction || item.industry_positioning || "Loading positioning...";
+    if (industryCompanyLocation) industryCompanyLocation.textContent = item.headquarters ? `${item.headquarters}` : "Headquarters";
+    if (industryCompanySize) industryCompanySize.textContent = item.company_size || "Enterprise company";
+    if (industryCompanyFocus) industryCompanyFocus.innerHTML = renderIndustryChips(item.focus_keywords || item.core_focus_areas, "No focus areas yet");
+    if (industryCompanyThemes) industryCompanyThemes.innerHTML = renderIndustryChips(item.recent_strategic_themes || item.strategic_themes, "No strategic themes yet");
+  }
+
+  function renderIndustryCount(el, count) {
+    if (el) {
+      el.textContent = String(Number(count || 0));
+    }
+  }
+
+  function formatIndustrySourceLabel(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "available" || normalized === "apify linkedin live" || normalized === "apify") return "Available";
+    if (normalized === "cached" || normalized === "stored linkedin cache") return "Cached";
+    if (normalized === "fallback" || normalized === "bing snippet fallback" || normalized === "demo linkedin fallback") return "Fallback";
+    if (normalized === "unavailable" || normalized === "none" || normalized === "missing") return "Unavailable";
+    if (!normalized) return "Unavailable";
+    return String(value).trim();
+  }
+
+  function deriveIndustrySourceCoverage(payload = {}) {
+    const refreshCoverage = Array.isArray(payload.source_coverage)
+      ? payload.source_coverage
+      : Array.isArray(payload.source_coverage_list)
+        ? payload.source_coverage_list
+        : [];
+    const refreshCoverageObject = payload.source_coverage && !Array.isArray(payload.source_coverage) ? payload.source_coverage : null;
+    const linkedinItem = payload.linkedin || {};
+    const sourceLabel = linkedinItem.source_label || refreshCoverageObject?.linkedin || (refreshCoverage[0] || "");
+    const sourceStatus = linkedinItem.source_status || "";
+    const sourceCoverage = [...refreshCoverage];
+
+    if (!sourceCoverage.length) {
+      sourceCoverage.push(
+        sourceLabel || (sourceStatus === "apify" ? "Apify LinkedIn live" : sourceStatus === "cache" ? "Stored LinkedIn cache" : sourceStatus === "bing" ? "Bing snippet fallback" : "Demo LinkedIn fallback")
+      );
+    }
+
+    const hasCompany = Boolean(payload.company);
+    const hasNews = Array.isArray(payload.news) && payload.news.length > 0;
+    const hasCompetitors = Array.isArray(payload.competitors) && payload.competitors.length > 0;
+    const hasInsights = Array.isArray(payload.recommendations) && payload.recommendations.length > 0;
+    const linkedinDisplay = sourceLabel || refreshCoverageObject?.linkedin || (sourceStatus === "apify" ? "Apify LinkedIn live" : sourceStatus === "cache" ? "Stored LinkedIn cache" : sourceStatus === "bing" ? "Bing snippet fallback" : "Demo LinkedIn fallback");
+    const insightsDisplay = refreshCoverageObject?.insights || (hasInsights ? "Gemini / Fallback" : "Fallback");
+    return {
+      company: refreshCoverageObject?.company || (hasCompany ? "Giggso Website" : "Unavailable"),
+      linkedin: linkedinDisplay,
+      news: refreshCoverageObject?.news || (hasNews ? "Google News RSS" : "Unavailable"),
+      competitors: refreshCoverageObject?.competitors || (hasCompetitors ? "Web/Search Signals" : "Unavailable"),
+      insights: insightsDisplay,
+      lastRefreshed: refreshCoverageObject?.last_refreshed || payload.lastUpdated || payload.last_updated || new Date().toISOString(),
+      raw: sourceCoverage,
+      statuses: {
+        company: refreshCoverageObject?.company ? "available" : hasCompany ? "available" : "unavailable",
+        linkedin: refreshCoverageObject?.linkedin ? (sourceStatus === "cache" ? "cached" : sourceStatus === "bing" ? "fallback" : "available") : (sourceLabel ? "available" : "unavailable"),
+        news: refreshCoverageObject?.news ? "available" : hasNews ? "available" : "unavailable",
+        competitors: refreshCoverageObject?.competitors ? "available" : hasCompetitors ? "available" : "unavailable",
+        insights: String(insightsDisplay).toLowerCase().includes("fallback") ? "fallback" : (hasInsights ? "available" : "fallback"),
+      },
+    };
+  }
+
+  function setIndustrySourceState(el, displayLabel, status) {
+    if (!el) return;
+    const normalized = String(status || "").trim().toLowerCase();
+    el.classList.remove("is-available", "is-cached", "is-fallback", "is-unavailable");
+    if (normalized === "available") {
+      el.classList.add("is-available");
+    } else if (normalized === "cached") {
+      el.classList.add("is-cached");
+    } else if (normalized === "fallback") {
+      el.classList.add("is-fallback");
+    } else {
+      el.classList.add("is-unavailable");
+    }
+    const strong = el.querySelector("strong");
+    if (strong) {
+      strong.textContent = displayLabel || formatIndustrySourceLabel(status);
+    }
+  }
+
+  function renderIndustrySourceCoverage(coverage = {}) {
+    if (industrySourceCompany) setIndustrySourceState(industrySourceCompany.closest(".industry-source-strip__item") || industrySourceCompany.parentElement, coverage.company, coverage.statuses?.company);
+    if (industrySourceLinkedin) setIndustrySourceState(industrySourceLinkedin.closest(".industry-source-strip__item") || industrySourceLinkedin.parentElement, coverage.linkedin, coverage.statuses?.linkedin);
+    if (industrySourceNews) setIndustrySourceState(industrySourceNews.closest(".industry-source-strip__item") || industrySourceNews.parentElement, coverage.news, coverage.statuses?.news);
+    if (industrySourceCompetitors) setIndustrySourceState(industrySourceCompetitors.closest(".industry-source-strip__item") || industrySourceCompetitors.parentElement, coverage.competitors, coverage.statuses?.competitors);
+    if (industrySourceInsights) setIndustrySourceState(industrySourceInsights.closest(".industry-source-strip__item") || industrySourceInsights.parentElement, coverage.insights, coverage.statuses?.insights);
+    if (industrySourceLastRefreshed) {
+      industrySourceLastRefreshed.textContent = coverage.lastRefreshed ? formatDate(coverage.lastRefreshed) : "Never";
+    }
+    if (industrySourceCoverageStrip && Array.isArray(coverage.raw) && coverage.raw.length) {
+      industrySourceCoverageStrip.dataset.coverage = coverage.raw.join(", ");
+    }
+  }
+
+  function renderIndustryEvidenceFacts(item = {}) {
+    const evidenceCount = safeNumber(item.evidence_count ?? item.evidenceCount ?? item.article_count ?? 0);
+    const sourceCount = safeNumber(item.source_count ?? item.sourceCount ?? 0);
+    const lastUpdated = item.last_updated || item.lastUpdated || item.updated_at || item.created_at || item.timestamp || null;
+    const confidenceReason = item.confidence_reason || item.confidenceReason || (evidenceCount > 0 ? `Evidence-backed from ${evidenceCount.toFixed(0)} signals.` : "Insufficient evidence available.");
+    return `
+      <div><span>Evidence count</span><strong>${escapeHtml(evidenceCount.toFixed(0))}</strong></div>
+      <div><span>Source count</span><strong>${escapeHtml(sourceCount.toFixed(0))}</strong></div>
+      <div><span>Last updated</span><strong>${escapeHtml(formatDate(lastUpdated))}</strong></div>
+      <div><span>Confidence reason</span><strong>${escapeHtml(confidenceReason)}</strong></div>
+    `;
+  }
+
+  function persistIndustryExportContext(type, payload) {
+    const context = {
+      type: type || "snapshot",
+      payload: payload || null,
+      updatedAt: new Date().toISOString(),
+    };
+    if (type === "search") {
+      state.industry.search = state.industry.search || { query: "", result: null, lastUpdated: null, loaded: false };
+      state.industry.search.result = payload || null;
+    } else if (type === "compare") {
+      state.industry.comparison = payload || null;
+    } else if (type === "trend") {
+      state.industry.trend = payload || null;
+    } else if (type === "product-impact") {
+      state.industry.productImpact = payload || null;
+    } else {
+      state.industry.snapshot = payload || state.industry.snapshot;
+    }
+    state.industry.exportContext = context;
+    try {
+      window.sessionStorage.setItem("trendhunterIndustryExportContext", JSON.stringify(context));
+    } catch (error) {
+      debugLog("Unable to persist industry export context", error);
+    }
+    return context;
+  }
+
+  function restoreIndustryExportContext() {
+    try {
+      const raw = window.sessionStorage.getItem("trendhunterIndustryExportContext");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      state.industry.exportContext = {
+        type: parsed.type || "snapshot",
+        payload: parsed.payload || null,
+        updatedAt: parsed.updatedAt || null,
+      };
+      if (state.industry.exportContext.type === "search" && state.industry.exportContext.payload) {
+        state.industry.search = {
+          ...(state.industry.search || {}),
+          query: state.industry.exportContext.payload.query || "",
+          result: state.industry.exportContext.payload,
+          lastUpdated: state.industry.exportContext.payload.generated_at || parsed.updatedAt || null,
+          loaded: Boolean(state.industry.exportContext.payload.query),
+        };
+      } else if (state.industry.exportContext.type === "compare" && state.industry.exportContext.payload) {
+        state.industry.comparison = state.industry.exportContext.payload;
+      } else if (state.industry.exportContext.type === "trend" && state.industry.exportContext.payload) {
+        state.industry.trend = state.industry.exportContext.payload;
+      } else if (state.industry.exportContext.type === "product-impact" && state.industry.exportContext.payload) {
+        state.industry.productImpact = state.industry.exportContext.payload;
+      } else if (state.industry.exportContext.type === "snapshot" && state.industry.exportContext.payload) {
+        state.industry.snapshot = state.industry.exportContext.payload;
+      }
+      return state.industry.exportContext;
+    } catch (error) {
+      debugLog("Unable to restore industry export context", error);
+      return null;
+    }
+  }
+
+  function buildIndustryPdfPayload() {
+    const context = state.industry.exportContext || { type: "snapshot", payload: null };
+    const snapshot = state.industry.snapshot || {};
+    const basePayload = {
+      generated_at: new Date().toISOString(),
+      source_coverage: state.industry.sourceCoverage || snapshot.sourceCoverage || null,
+      company: state.industry.company || snapshot.company || null,
+    };
+
+    if (context.type === "search") {
+      const source = context.payload || state.industry.search?.result || {};
+      return {
+        ...basePayload,
+        report_type: "search",
+        ...source,
+        query: source.query || state.industry.search?.query || "",
+        trend_history: source.trend_history || source.history || state.industry.search?.result?.trend_history || null,
+        recent_news: Array.isArray(source.recent_news) ? source.recent_news : [],
+        recommendations: Array.isArray(source.recommendations) ? source.recommendations : [],
+        related_keywords: Array.isArray(source.related_keywords) ? source.related_keywords : [],
+        generated_at: source.generated_at || basePayload.generated_at,
+      };
+    }
+
+    if (context.type === "compare") {
+      const source = context.payload || state.industry.comparison || {};
+      return {
+        ...basePayload,
+        report_type: "compare",
+        ...source,
+        q1: source.q1 || source.left_query || "",
+        q2: source.q2 || source.right_query || "",
+        keyword_overlap: Array.isArray(source.keyword_overlap) ? source.keyword_overlap : [],
+        strengths: Array.isArray(source.strengths) ? source.strengths : [],
+        weaknesses: Array.isArray(source.weaknesses) ? source.weaknesses : [],
+        recent_news: Array.isArray(source.recent_news) ? source.recent_news : [],
+        recommendations: Array.isArray(source.recommendations) ? source.recommendations : [],
+        generated_at: source.generated_at || basePayload.generated_at,
+      };
+    }
+
+    if (context.type === "trend") {
+      const source = context.payload || state.industry.trend || {};
+      return {
+        ...basePayload,
+        report_type: "trend",
+        ...source,
+        trend_name: source.trend_name || source.title || "",
+        related_keywords: Array.isArray(source.related_keywords) ? source.related_keywords : Array.isArray(source.keywords) ? source.keywords : [],
+        recent_news: Array.isArray(source.recent_news) ? source.recent_news : [],
+        opportunities: Array.isArray(source.opportunities) ? source.opportunities : [],
+        trend_history: source.trend_history || source.history || null,
+        generated_at: source.generated_at || basePayload.generated_at,
+      };
+    }
+
+    if (context.type === "product-impact") {
+      const source = context.payload || state.industry.productImpact || {};
+      return {
+        ...basePayload,
+        report_type: "product-impact",
+        ...source,
+        feature_name: source.feature_name || state.industry.productImpact?.feature_name || "",
+        feature_description: source.feature_description || state.industry.productImpact?.feature_description || "",
+        market_demand_score: source.market_demand_score ?? 0,
+        enterprise_interest_score: source.enterprise_interest_score ?? 0,
+        competitive_advantage_score: source.competitive_advantage_score ?? 0,
+        expected_reach_score: source.expected_reach_score ?? source.reach_score ?? 0,
+        adoption_probability_score: source.adoption_probability_score ?? source.adoption_score ?? 0,
+        revenue_opportunity_score: source.revenue_opportunity_score ?? 0,
+        strategic_fit_score: source.strategic_fit_score ?? source.enterprise_fit_score ?? 0,
+        risk_score: source.risk_score ?? 0,
+        recommended_launch_priority: source.recommended_launch_priority || "Validate further",
+        overall_launch_readiness_score: source.overall_launch_readiness_score ?? 0,
+        executive_launch_readiness_report: source.executive_launch_readiness_report || "",
+        supporting_trends: Array.isArray(source.supporting_trends) ? source.supporting_trends : [],
+        supporting_competitors: Array.isArray(source.supporting_competitors) ? source.supporting_competitors : [],
+        supporting_opportunities: Array.isArray(source.supporting_opportunities) ? source.supporting_opportunities : [],
+        supporting_keywords: Array.isArray(source.supporting_keywords) ? source.supporting_keywords : [],
+        rollout_plan: source.rollout_plan || { "30_days": [], "60_days": [], "90_days": [] },
+        generated_at: source.generated_at || basePayload.generated_at,
+      };
+    }
+
+    const topTrends = Array.isArray(snapshot.trends) ? snapshot.trends : Array.isArray(state.industry.trends) ? state.industry.trends : [];
+    const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : Array.isArray(state.industry.opportunities) ? state.industry.opportunities : [];
+    const recommendations = Array.isArray(snapshot.recommendations) ? snapshot.recommendations : Array.isArray(state.industry.recommendations) ? state.industry.recommendations : [];
+    const report = snapshot.report || state.industry.report || {};
+    return {
+      ...basePayload,
+      report_type: "snapshot",
+      top_trends: topTrends,
+      opportunities,
+      recommendations,
+      strategic_risks: report.strategic_risks || [],
+      executive_summary: report.executive_summary || {
+        top_signal: topTrends[0]?.trend_name || "Enterprise AI",
+        main_opportunity: opportunities[0]?.opportunity_name || "Governance-led opportunity",
+        main_risk: report.strategic_risks?.[0]?.risk || "AI adoption is moving faster than controls.",
+        recommended_action: "Focus on the most actionable signal and convert it into an executive story.",
+      },
+      generated_at: snapshot.lastUpdated || basePayload.generated_at,
+    };
+  }
+
+  function renderIndustryTrendCards(items = []) {
+    if (!industryTrendsGrid) return;
+    const list = Array.isArray(items) ? items : [];
+    industryTrendsGrid.innerHTML = list.length
+      ? list.map((item, index) => `
+        <article class="industry-card glass-panel" data-industry-trend-index="${index}">
+          <div class="industry-card__header">
+            <div>
+              <span class="industry-card__eyebrow">${escapeHtml(item.category || "Trend")}</span>
+              <h3>${escapeHtml(item.trend_name || "Unnamed trend")}</h3>
+            </div>
+            <span class="trend-badge trend-badge--mode">${escapeHtml(safeNumber(item.momentum_score).toFixed(0))}% momentum</span>
+          </div>
+          <p>${escapeHtml(item.executive_summary || item.summary || "")}</p>
+          <div class="industry-card__facts">
+            <div><span>Growth score</span><strong>${escapeHtml(safeNumber(item.growth_score).toFixed(0))}%</strong></div>
+            <div><span>Source count</span><strong>${escapeHtml(item.source_count ?? 0)}</strong></div>
+            <div><span>Last updated</span><strong>${escapeHtml(formatDate(item.last_updated || item.updated_at || item.created_at))}</strong></div>
+            ${renderIndustryEvidenceFacts(item)}
+          </div>
+          <div class="industry-chip-list industry-chip-list--stack">
+            ${renderIndustryChips(item.source_notes, "Reference note")}
+          </div>
+        </article>
+      `).join("")
+      : `<article class="industry-card glass-panel"><p>No industry trends found.</p></article>`;
+  }
+
+  function renderIndustryCompetitorCards(items = []) {
+    if (!industryCompetitorsGrid) return;
+    const list = Array.isArray(items) ? items : [];
+    industryCompetitorsGrid.innerHTML = list.length
+      ? list.map((item) => `
+        <article class="industry-card glass-panel">
+          <div class="industry-card__header">
+            <div>
+              <span class="industry-card__eyebrow">Competitor</span>
+              <h3>${escapeHtml(item.name || item.competitor_name || "Competitor")}</h3>
+            </div>
+            <span class="trend-badge trend-badge--source">${escapeHtml(safeNumber(item.momentum_score || item.market_momentum_score).toFixed(0))}%</span>
+          </div>
+          <p>${escapeHtml(item.activity_summary || "")}</p>
+          <div class="industry-card__facts">
+            <div><span>Focus area</span><strong>${escapeHtml(item.focus_area || "Enterprise AI")}</strong></div>
+            <div><span>Strategic position</span><strong>${escapeHtml(item.strategic_position || item.positioning || "Market active")}</strong></div>
+            <div><span>Last updated</span><strong>${escapeHtml(formatDate(item.last_updated || item.updated_at || item.created_at))}</strong></div>
+            ${renderIndustryEvidenceFacts(item)}
+          </div>
+        </article>
+      `).join("")
+      : `<article class="industry-card glass-panel"><p>No competitor intelligence found.</p></article>`;
+  }
+
+  function renderIndustryInsightCards(items = []) {
+    if (!industryInsightsGrid) return;
+    const list = Array.isArray(items) ? items : [];
+    industryInsightsGrid.innerHTML = list.length
+      ? list.map((item) => `
+        <article class="industry-card industry-card--insight glass-panel">
+          <div class="industry-card__header">
+            <div>
+              <span class="industry-card__eyebrow">${escapeHtml(item.priority || item.insight_type || "Insight")}</span>
+              <h3>${escapeHtml(item.insight_title || "Executive insight")}</h3>
+            </div>
+          </div>
+          <div class="industry-insight__block">
+            <span>What is trending?</span>
+            <p>${escapeHtml(item.what_is_trending || "")}</p>
+          </div>
+          <div class="industry-insight__block">
+            <span>Why it is important</span>
+            <p>${escapeHtml(item.why_it_matters || "")}</p>
+          </div>
+          <div class="industry-insight__block">
+            <span>Business impact</span>
+            <p>${escapeHtml(item.business_impact || "")}</p>
+          </div>
+          <div class="industry-insight__block industry-insight__block--action">
+            <span>Recommended action</span>
+            <p>${escapeHtml(item.recommended_action || "")}</p>
+          </div>
+          <div class="industry-card__facts">
+            ${renderIndustryEvidenceFacts(item)}
+          </div>
+        </article>
+      `).join("")
+      : `<article class="industry-card glass-panel"><p>No industry insights found.</p></article>`;
+  }
+
+  function renderIndustryOpportunityCards(items = []) {
+    if (!industryOpportunitiesGrid) return;
+    const list = Array.isArray(items)
+      ? items.filter((item) => safeNumber(item?.evidence_count ?? item?.source_count) > 0)
+      : [];
+    industryOpportunitiesGrid.innerHTML = list.length
+      ? list.map((item) => `
+        <article class="industry-card glass-panel industry-card--opportunity">
+          <div class="industry-card__header">
+            <div>
+              <span class="industry-card__eyebrow">${escapeHtml(item.trend_name || item.trend || "Opportunity")}</span>
+              <h3>${escapeHtml(getOpportunityTitle(item))}</h3>
+            </div>
+            <span class="trend-badge trend-badge--mode">${escapeHtml(getOpportunityScoreValue(item).toFixed(0))}%</span>
+          </div>
+          <p>${escapeHtml(item.summary || item.reason || "")}</p>
+          <div class="industry-card__facts">
+            <div><span>Confidence</span><strong>${escapeHtml(`${safeNumber(item.confidence_score ?? item.confidence).toFixed(0)}%`)}</strong></div>
+            <div><span>Supporting evidence</span><strong>${renderOpportunityEvidenceSummary(item)}</strong></div>
+            <div><span>Business impact</span><strong>${escapeHtml(item.business_value || item.impact || "Commercial upside")}</strong></div>
+            <div><span>Recommended action</span><strong>${escapeHtml(item.recommended_action || "Near-term execution")}</strong></div>
+            <div><span>Source count</span><strong>${escapeHtml(String(safeNumber(item.source_count).toFixed(0)))}</strong></div>
+            <div><span>Evidence count</span><strong>${escapeHtml(String(safeNumber(item.evidence_count).toFixed(0)))}</strong></div>
+            <div><span>Last updated</span><strong>${escapeHtml(formatDate(item.last_updated || item.updated_at || item.created_at))}</strong></div>
+          </div>
+        </article>
+      `).join("")
+      : `<article class="industry-card glass-panel"><p>No evidence-backed market opportunities found.</p></article>`;
+  }
+
+  function renderOpportunityEvidenceSummary(item = {}) {
+    const entries = Array.isArray(item.supporting_evidence) ? item.supporting_evidence : [];
+    const competitorSignals = Array.isArray(item.signal_inputs?.matched_competitors) ? item.signal_inputs.matched_competitors.filter(Boolean) : [];
+    if (!entries.length) {
+      return escapeHtml(item.confidence_reason || "Evidence-backed signal");
+    }
+    const parts = entries.slice(0, 2).map((entry) => {
+      const label = escapeHtml(entry?.label || "Signal");
+      const value = escapeHtml(entry?.value || "");
+      return `${label}: ${value}`;
+    });
+    if (competitorSignals.length) {
+      parts.push(`Competitor signals: ${escapeHtml(String(competitorSignals.length))}`);
+    } else {
+      parts.push("Competitor signals: None detected");
+    }
+    return parts.join(" | ");
+  }
+
+  function renderIndustryRecommendationCards(items = []) {
+    if (!industryRecommendationsGrid) return;
+    const list = Array.isArray(items) ? items : [];
+    industryRecommendationsGrid.innerHTML = list.length
+      ? list.map((item) => `
+        <article class="industry-card industry-card--insight glass-panel">
+          <div class="industry-card__header">
+            <div>
+              <span class="industry-card__eyebrow">${escapeHtml(item.trend || "Recommendation")}</span>
+              <h3>${escapeHtml(item.recommended_action || "Recommended action")}</h3>
+            </div>
+            <span class="trend-badge trend-badge--mode">${escapeHtml(safeNumber(item.confidence_score).toFixed(0))}% confidence</span>
+          </div>
+          <div class="industry-insight__block">
+            <span>Reason</span>
+            <p>${escapeHtml(item.reason || "")}</p>
+          </div>
+          <div class="industry-insight__block">
+            <span>Impact</span>
+            <p>${escapeHtml(item.impact || "")}</p>
+          </div>
+          <div class="industry-insight__block industry-insight__block--action">
+            <span>Recommended action</span>
+            <p>${escapeHtml(item.recommended_action || "")}</p>
+          </div>
+          <div class="industry-card__facts">
+            ${renderIndustryEvidenceFacts(item)}
+          </div>
+        </article>
+      `).join("")
+      : `<article class="industry-card glass-panel"><p>No executive recommendations found.</p></article>`;
+  }
+
+  function renderIndustryKeywordGroups(items = []) {
+    const grouped = groupIndustryKeywords(items);
+    if (industryKeywordsGovernance) {
+      industryKeywordsGovernance.innerHTML = renderIndustryChips(grouped["Top AI Governance Keywords"]?.map((item) => item.keyword), "No governance keywords yet");
+    }
+    if (industryKeywordsGrowing) {
+      industryKeywordsGrowing.innerHTML = renderIndustryChips(grouped["Fastest Growing Keywords"]?.map((item) => item.keyword), "No growth keywords yet");
+    }
+    if (industryKeywordsAdoption) {
+      industryKeywordsAdoption.innerHTML = renderIndustryChips(grouped["Enterprise Adoption Keywords"]?.map((item) => item.keyword), "No adoption keywords yet");
+    }
+  }
+
+  function renderIndustryReport(report) {
+    if (!report) return;
+    if (industryReportTopTrends) industryReportTopTrends.innerHTML = renderIndustryList(report.top_trends, "No top trends yet");
+    if (industryReportCompetitors) industryReportCompetitors.innerHTML = renderIndustryList(report.competitor_highlights, "No competitor highlights yet");
+    if (industryReportRisks) industryReportRisks.innerHTML = renderIndustryList(report.strategic_risks, "No strategic risks yet");
+    if (industryReportOpportunities) industryReportOpportunities.innerHTML = renderIndustryList(report.strategic_opportunities, "No strategic opportunities yet");
+    if (industryReportRecommendations) industryReportRecommendations.innerHTML = renderIndustryList(report.executive_recommendations, "No recommendations yet");
+  }
+
+  function renderIndustrySearchResult(result = null) {
+    const item = result || {};
+    const hasQuery = Boolean(item.query);
+    const searchQuery = hasQuery ? item.query : "";
+    const trendScore = safeNumber(item.trend_score);
+    const growthScore = safeNumber(item.growth_score);
+    const confidenceScore = safeNumber(item.confidence_score);
+    const momentum = item.momentum || "";
+    const summary = item.executive_summary || "";
+    const recommendation = item.recommendation || "";
+    const relatedKeywords = Array.isArray(item.related_keywords) ? item.related_keywords : [];
+    const recentNews = Array.isArray(item.recent_news) ? item.recent_news : [];
+    const competitorMentions = Array.isArray(item.competitor_mentions) ? item.competitor_mentions : [];
+    const trendHistory = item.trend_history || item.history || null;
+
+    if (industrySearchResultCard) {
+      industrySearchResultCard.hidden = !hasQuery;
+    }
+
+    state.industry.search = {
+      query: item.query || state.industry.search?.query || "",
+      result: item,
+      lastUpdated: item.generated_at || item.last_updated || new Date().toISOString(),
+      loaded: hasQuery,
+    };
+    if (hasQuery) {
+      persistIndustryExportContext("search", item);
+    }
+
+    if (!hasQuery) {
+      if (industrySearchQuery) industrySearchQuery.textContent = "";
+      if (industrySearchTrendScore) industrySearchTrendScore.textContent = "";
+      if (industrySearchMomentum) industrySearchMomentum.textContent = "";
+      if (industrySearchGrowthScore) industrySearchGrowthScore.textContent = "";
+      if (industrySearchConfidence) industrySearchConfidence.textContent = "";
+      if (industrySearchSummary) industrySearchSummary.textContent = "";
+      if (industrySearchRecommendation) industrySearchRecommendation.textContent = "";
+      if (industrySearchKeywords) industrySearchKeywords.innerHTML = "";
+      if (industrySearchEvidence) industrySearchEvidence.innerHTML = "";
+      if (industrySearchNews) industrySearchNews.innerHTML = "";
+      if (industrySearchCompetitors) industrySearchCompetitors.innerHTML = "";
+      renderIndustryTrendHistory(null);
+      return;
+    }
+
+    if (industrySearchQuery) industrySearchQuery.textContent = searchQuery;
+    if (industrySearchTrendScore) industrySearchTrendScore.textContent = `${trendScore.toFixed(0)} / 100`;
+    if (industrySearchMomentum) industrySearchMomentum.textContent = `${momentum} momentum`;
+    if (industrySearchGrowthScore) industrySearchGrowthScore.textContent = `${growthScore.toFixed(0)}%`;
+    if (industrySearchConfidence) industrySearchConfidence.textContent = `${confidenceScore.toFixed(0)}% confidence`;
+    if (industrySearchSummary) industrySearchSummary.textContent = summary;
+    if (industrySearchRecommendation) industrySearchRecommendation.textContent = recommendation;
+    if (industrySearchKeywords) {
+      industrySearchKeywords.innerHTML = renderIndustryChips(relatedKeywords, "No related keywords found");
+    }
+    if (industrySearchEvidence) {
+      industrySearchEvidence.innerHTML = renderIndustryEvidenceFacts(item);
+    }
+    if (industrySearchNews) {
+      industrySearchNews.innerHTML = recentNews.length
+        ? recentNews.map((newsItem) => renderIndustryNewsCard(newsItem)).join("")
+        : "";
+    }
+    if (industrySearchCompetitors) {
+      industrySearchCompetitors.innerHTML = competitorMentions.length
+        ? competitorMentions.map((competitor) => `
+          <div class="industry-report-list__item">
+            <strong>${escapeHtml(competitor.name || "Competitor")}</strong>
+            <span>${escapeHtml(competitor.activity_summary || competitor.strategic_position || "")}</span>
+            <span>${escapeHtml([competitor.focus_area, competitor.momentum_score ? `${safeNumber(competitor.momentum_score).toFixed(0)} momentum` : ""].filter(Boolean).join(" • "))}</span>
+          </div>
+        `).join("")
+        : "";
+    }
+    renderIndustryTrendHistory(trendHistory);
+  }
+
+  function renderIndustryProductImpactResult(result = null) {
+    const item = result || {};
+    const hasFeature = Boolean(item.feature_name || item.feature_description);
+    if (industryProductImpactResultCard) {
+      industryProductImpactResultCard.hidden = !hasFeature;
+    }
+
+    if (!hasFeature) {
+      if (industryProductImpactResultBody) {
+        industryProductImpactResultBody.innerHTML = "";
+      }
+      return;
+    }
+
+    state.industry.productImpact = item;
+
+    const executiveVerdict = item.executive_verdict || {};
+    const keyScores = item.key_scores || {};
+    const mlPredictions = item.ml_predictions || {};
+    const contributingFactors = item.top_contributing_factors || {};
+    const opportunities = Array.isArray(item.top_opportunities) ? item.top_opportunities : [];
+    const risks = Array.isArray(item.top_risks) ? item.top_risks : [];
+    const nextActions = item.recommended_next_actions || {};
+    const scoreCards = [
+      { label: "Market Demand", value: keyScores.market_demand ?? item.market_demand_score },
+      { label: "Enterprise Fit", value: keyScores.enterprise_fit ?? item.enterprise_fit_score ?? item.strategic_fit_score },
+      { label: "Revenue Opportunity", value: keyScores.revenue_opportunity ?? item.revenue_opportunity_score },
+      { label: "Competitive Advantage", value: keyScores.competitive_advantage ?? item.competitive_advantage_score },
+      { label: "Risk", value: keyScores.risk ?? item.risk_score },
+      { label: "Launch Readiness", value: keyScores.launch_readiness ?? item.overall_launch_readiness_score },
+    ];
+    const metricCards = scoreCards
+      .map((card) => `
+        <div class="industry-search-result__panel">
+          <span class="industry-summary-card__label">${escapeHtml(card.label)}</span>
+          <strong>${escapeHtml(`${safeNumber(card.value).toFixed(0)} / 100`)}</strong>
+        </div>
+      `)
       .join("");
-    currentTrendsList.innerHTML = [...sourceTags, keywordTags].filter(Boolean).join("");
+    const immediateActions = Array.isArray(nextActions.immediate_actions) ? nextActions.immediate_actions : [];
+    const shortTermActions = Array.isArray(nextActions.short_term_actions) ? nextActions.short_term_actions : [];
+    const launchActions = Array.isArray(nextActions.launch_actions) ? nextActions.launch_actions : [];
+    const launchPrediction = mlPredictions.launch_readiness || {};
+    const riskPrediction = mlPredictions.risk_classification || {};
+    const revenuePrediction = mlPredictions.revenue_opportunity || {};
+    const factorGroups = [
+      {
+        title: "Launch Readiness Factors",
+        items: Array.isArray(contributingFactors.launch_readiness) ? contributingFactors.launch_readiness : [],
+      },
+      {
+        title: "Risk Factors",
+        items: Array.isArray(contributingFactors.risk_classification) ? contributingFactors.risk_classification : [],
+      },
+      {
+        title: "Revenue Factors",
+        items: Array.isArray(contributingFactors.revenue_opportunity) ? contributingFactors.revenue_opportunity : [],
+      },
+    ];
+
+    if (industryProductImpactResultBody) {
+      industryProductImpactResultBody.innerHTML = `
+        <div class="industry-card__header industry-search-result__header">
+          <div>
+            <span class="industry-card__eyebrow">Product Impact Intelligence</span>
+            <h3 id="industry-product-impact-title">${escapeHtml(item.feature_name || "Feature assessment")}</h3>
+          </div>
+          <div class="industry-search-result__metrics">
+            <span class="trend-badge trend-badge--mode">${escapeHtml(executiveVerdict.verdict || item.recommended_launch_priority || "Validate First")}</span>
+            <span class="trend-badge trend-badge--source">${escapeHtml(`${safeNumber(executiveVerdict.confidence_score ?? item.confidence_score).toFixed(0)}% confidence`)}</span>
+            <span class="trend-badge trend-badge--fallback">${escapeHtml(`${safeNumber(item.overall_launch_readiness_score).toFixed(0)} / 100 readiness`)}</span>
+          </div>
+        </div>
+        <div class="industry-search-result__grid">
+          ${metricCards}
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Executive Verdict</span>
+            <p>${escapeHtml(executiveVerdict.explanation || item.executive_launch_readiness_report || "No verdict available.")}</p>
+          </div>
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Final Recommendation</span>
+            <p>${escapeHtml(item.final_recommendation || item.launch_priority_reason || item.recommended_launch_priority || "Validate first.")}</p>
+          </div>
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">ML Predictions</span>
+            <div class="industry-report-list">
+              <div class="industry-report-list__item">
+                <strong>Launch Readiness Prediction</strong>
+                <span>${escapeHtml(`${safeNumber(launchPrediction.predicted_score ?? item.predicted_launch_readiness_score ?? keyScores.launch_readiness).toFixed(0)} / 100`)}</span>
+                <span>${escapeHtml(`${safeNumber(launchPrediction.confidence_score ?? item.prediction_confidence).toFixed(0)}% confidence`)}</span>
+              </div>
+              <div class="industry-report-list__item">
+                <strong>Risk Classification</strong>
+                <span>${escapeHtml(riskPrediction.predicted_label || item.risk_classification_label || "Medium Risk")}</span>
+                <span>${escapeHtml(`${safeNumber(riskPrediction.risk_probability ?? item.predicted_risk_probability).toFixed(2)} probability`)}</span>
+              </div>
+              <div class="industry-report-list__item">
+                <strong>Revenue Opportunity Prediction</strong>
+                <span>${escapeHtml(`${safeNumber(revenuePrediction.predicted_score ?? item.predicted_revenue_opportunity_score ?? keyScores.revenue_opportunity).toFixed(0)} / 100`)}</span>
+                <span>${escapeHtml(`${safeNumber(revenuePrediction.confidence_score ?? item.prediction_confidence).toFixed(0)}% confidence`)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Top Contributing Factors</span>
+            <div class="industry-search-result__split">
+              ${factorGroups.map((group) => `
+                <div>
+                  <span class="industry-summary-card__label">${escapeHtml(group.title)}</span>
+                  <div class="industry-report-list">
+                    ${
+                      group.items.length
+                        ? group.items.map((entry) => `
+                          <div class="industry-report-list__item">
+                            <strong>${escapeHtml(entry.factor || "Factor")}</strong>
+                            <span>${escapeHtml(`Contribution Direction: ${entry.contribution_direction || entry.direction || "Positive"}`)}</span>
+                            <span>${escapeHtml(`Signed Contribution: ${entry.signed_display || `${safeNumber(entry.signed_impact ?? entry.impact).toFixed(2)}`}`)}</span>
+                            <span>${escapeHtml(`Business Explanation: ${entry.business_explanation || "Model explanation unavailable."}`)}</span>
+                          </div>
+                        `).join("")
+                        : `<div class="industry-report-list__item"><strong>No factor data</strong><span>Model detail unavailable.</span></div>`
+                    }
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Top Opportunities</span>
+            <div class="industry-report-list">
+              ${opportunities.length ? opportunities.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry.opportunity || "Opportunity")}</strong><span>${escapeHtml(entry.business_impact || "")}</span></div>`).join("") : `<div class="industry-report-list__item"><strong>No opportunities identified</strong><span>None identified yet.</span></div>`}
+            </div>
+          </div>
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Top Risks</span>
+            <div class="industry-report-list">
+              ${risks.length ? risks.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry.risk || "Risk")}</strong><span>${escapeHtml(entry.mitigation || "")}</span></div>`).join("") : `<div class="industry-report-list__item"><strong>No major risks identified</strong><span>Risk appears manageable.</span></div>`}
+            </div>
+          </div>
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Recommended Next Actions</span>
+            <div class="industry-search-result__split">
+              <div>
+                <span class="industry-summary-card__label">Immediate Actions</span>
+                <div class="industry-report-list">
+                  ${immediateActions.length ? immediateActions.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry)}</strong></div>`).join("") : `<div class="industry-report-list__item"><strong>No immediate actions</strong></div>`}
+                </div>
+              </div>
+              <div>
+                <span class="industry-summary-card__label">Short-Term Actions</span>
+                <div class="industry-report-list">
+                  ${shortTermActions.length ? shortTermActions.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry)}</strong></div>`).join("") : `<div class="industry-report-list__item"><strong>No short-term actions</strong></div>`}
+                </div>
+              </div>
+              <div>
+                <span class="industry-summary-card__label">Launch Actions</span>
+                <div class="industry-report-list">
+                  ${launchActions.length ? launchActions.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry)}</strong></div>`).join("") : `<div class="industry-report-list__item"><strong>No launch actions</strong></div>`}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function renderIndustryComparison(result = null) {
+    const item = result || {};
+    const hasQuery = Boolean(item.q1 || item.q2);
+    const gapAnalysis = item.competitive_gap_analysis || {};
+    const strategicRecommendations = Array.isArray(item.strategic_recommendations) ? item.strategic_recommendations : [];
+    const actionPlan = item.executive_action_plan || {};
+    const roadmap = item.roadmap_30_60_90 || {};
+    const forecast = item.business_impact_forecast || {};
+    const readiness = item.executive_readiness_score || {};
+    const boardRecommendations = Array.isArray(item.board_recommendations) ? item.board_recommendations : [];
+    const leftLabel = gapAnalysis.left_label || item.q1 || "Left signal";
+    const rightLabel = gapAnalysis.right_label || item.q2 || "Right signal";
+    if (industryCompareResultCard) {
+      industryCompareResultCard.hidden = !hasQuery;
+    }
+    if (!hasQuery) {
+      if (industryCompareTitle) industryCompareTitle.textContent = "";
+      if (industryCompareTrendScore) industryCompareTrendScore.textContent = "";
+      if (industryCompareMomentum) industryCompareMomentum.textContent = "";
+      if (industryCompareGrowthScore) industryCompareGrowthScore.textContent = "";
+      if (industryCompareKeywords) industryCompareKeywords.innerHTML = "";
+      if (industryCompareEvidence) industryCompareEvidence.innerHTML = "";
+      if (industryCompareSummary) industryCompareSummary.textContent = "";
+      if (industryCompareStrengths) industryCompareStrengths.innerHTML = "";
+      if (industryCompareWeaknesses) industryCompareWeaknesses.innerHTML = "";
+      if (industryCompareNews) industryCompareNews.innerHTML = "";
+      if (industryCompareLeftWinsLabel) industryCompareLeftWinsLabel.textContent = "Left wins";
+      if (industryCompareRightWinsLabel) industryCompareRightWinsLabel.textContent = "Right wins";
+      if (industryCompareLeftWins) industryCompareLeftWins.innerHTML = "";
+      if (industryCompareRightWins) industryCompareRightWins.innerHTML = "";
+      if (industryCompareMissingCapabilities) industryCompareMissingCapabilities.innerHTML = "";
+      if (industryComparePositioningGaps) industryComparePositioningGaps.innerHTML = "";
+      if (industryCompareReadinessGaps) industryCompareReadinessGaps.innerHTML = "";
+      if (industryCompareStrategicRecommendations) industryCompareStrategicRecommendations.innerHTML = "";
+      if (industryCompareImmediateActions) industryCompareImmediateActions.innerHTML = "";
+      if (industryCompareNextActions) industryCompareNextActions.innerHTML = "";
+      if (industryCompareLongTermActions) industryCompareLongTermActions.innerHTML = "";
+      if (industryCompareRoadmap30) industryCompareRoadmap30.innerHTML = "";
+      if (industryCompareRoadmap60) industryCompareRoadmap60.innerHTML = "";
+      if (industryCompareRoadmap90) industryCompareRoadmap90.innerHTML = "";
+      if (industryCompareForecast) industryCompareForecast.innerHTML = "";
+      if (industryCompareReadiness) industryCompareReadiness.innerHTML = "";
+      if (industryCompareBoardRecommendations) industryCompareBoardRecommendations.innerHTML = "";
+      return;
+    }
+
+    if (industryCompareTitle) industryCompareTitle.textContent = `${item.q1 || "Signal 1"} vs ${item.q2 || "Signal 2"}`;
+    if (industryCompareTrendScore) industryCompareTrendScore.textContent = `${safeNumber(item.trend_score).toFixed(0)} / 100`;
+    if (industryCompareMomentum) industryCompareMomentum.textContent = `${item.momentum || "Moderate"} momentum`;
+    if (industryCompareGrowthScore) industryCompareGrowthScore.textContent = `${safeNumber(item.growth_score).toFixed(0)} growth`;
+    if (industryCompareKeywords) industryCompareKeywords.innerHTML = renderIndustryChips(item.keyword_overlap || [], "No overlap");
+    if (industryCompareEvidence) industryCompareEvidence.innerHTML = renderIndustryEvidenceFacts(item);
+    if (industryCompareSummary) industryCompareSummary.textContent = item.executive_summary || "";
+    if (industryCompareStrengths) industryCompareStrengths.innerHTML = renderIndustryList(item.strengths || [], "No strengths identified");
+    if (industryCompareWeaknesses) industryCompareWeaknesses.innerHTML = renderIndustryList(item.weaknesses || [], "No weaknesses identified");
+    if (industryCompareNews) {
+      const recentNews = Array.isArray(item.recent_news) ? item.recent_news : [];
+      industryCompareNews.innerHTML = recentNews.length
+        ? recentNews.map((newsItem) => renderIndustryNewsCard(newsItem)).join("")
+        : renderIndustryList([], "No recent news");
+    }
+    if (industryCompareLeftWinsLabel) industryCompareLeftWinsLabel.textContent = `${leftLabel} Wins`;
+    if (industryCompareRightWinsLabel) industryCompareRightWinsLabel.textContent = `${rightLabel} Wins`;
+    if (industryCompareLeftWins) {
+      industryCompareLeftWins.innerHTML = renderIndustryStructuredList(gapAnalysis.left_wins || [], `${leftLabel} has no distinct win set yet`);
+    }
+    if (industryCompareRightWins) {
+      industryCompareRightWins.innerHTML = renderIndustryStructuredList(gapAnalysis.right_wins || [], `${rightLabel} has no distinct win set yet`);
+    }
+    if (industryCompareMissingCapabilities) {
+      industryCompareMissingCapabilities.innerHTML = renderIndustryStructuredList(gapAnalysis.missing_capabilities || [], "No missing capabilities identified");
+    }
+    if (industryComparePositioningGaps) {
+      industryComparePositioningGaps.innerHTML = renderIndustryStructuredList(gapAnalysis.market_positioning_gaps || [], "No market positioning gaps identified");
+    }
+    if (industryCompareReadinessGaps) {
+      industryCompareReadinessGaps.innerHTML = renderIndustryStructuredList(gapAnalysis.enterprise_readiness_gaps || [], "No enterprise readiness gaps identified");
+    }
+    if (industryCompareStrategicRecommendations) {
+      industryCompareStrategicRecommendations.innerHTML = renderIndustryStructuredList(strategicRecommendations, "No strategic recommendations yet", (entry) => ({
+        title: `${entry.priority || "Priority"} • ${entry.initiative || entry.recommendation || "Recommendation"}`,
+        summary: entry.business_impact || "",
+        detail: entry.expected_outcome || "",
+      }));
+    }
+    if (industryCompareImmediateActions) {
+      industryCompareImmediateActions.innerHTML = renderIndustryStructuredList(actionPlan.immediate_actions || [], "No immediate actions yet", (entry) => ({
+        title: entry.objective || "Immediate action",
+        summary: entry.expected_impact || "",
+        detail: entry.priority ? `${entry.priority} priority` : "",
+      }));
+    }
+    if (industryCompareNextActions) {
+      industryCompareNextActions.innerHTML = renderIndustryStructuredList(actionPlan.next_actions || [], "No next actions yet", (entry) => ({
+        title: entry.objective || "Next action",
+        summary: entry.expected_impact || "",
+        detail: entry.priority ? `${entry.priority} priority` : "",
+      }));
+    }
+    if (industryCompareLongTermActions) {
+      industryCompareLongTermActions.innerHTML = renderIndustryStructuredList(actionPlan.long_term_actions || [], "No long-term actions yet", (entry) => ({
+        title: entry.objective || "Long-term action",
+        summary: entry.expected_impact || "",
+        detail: entry.priority ? `${entry.priority} priority` : "",
+      }));
+    }
+    if (industryCompareRoadmap30) {
+      industryCompareRoadmap30.innerHTML = renderIndustryStructuredList(roadmap["30_days"] || [], "No 30-day roadmap yet", (entry) => ({
+        title: entry.objective || "30-day objective",
+        summary: entry.expected_impact || "",
+        detail: entry.priority ? `${entry.priority} priority` : "",
+      }));
+    }
+    if (industryCompareRoadmap60) {
+      industryCompareRoadmap60.innerHTML = renderIndustryStructuredList(roadmap["60_days"] || [], "No 60-day roadmap yet", (entry) => ({
+        title: entry.objective || "60-day objective",
+        summary: entry.expected_impact || "",
+        detail: entry.priority ? `${entry.priority} priority` : "",
+      }));
+    }
+    if (industryCompareRoadmap90) {
+      industryCompareRoadmap90.innerHTML = renderIndustryStructuredList(roadmap["90_days"] || [], "No 90-day roadmap yet", (entry) => ({
+        title: entry.objective || "90-day objective",
+        summary: entry.expected_impact || "",
+        detail: entry.priority ? `${entry.priority} priority` : "",
+      }));
+    }
+    if (industryCompareForecast) {
+      const forecastItems = [
+        { title: "Market Visibility Gain", summary: `${safeNumber(forecast.market_visibility_gain).toFixed(0)}%`, detail: forecast.summary || "" },
+        { title: "Buyer Trust Gain", summary: `${safeNumber(forecast.buyer_trust_gain).toFixed(0)}%`, detail: forecast.summary || "" },
+        { title: "Competitive Advantage", summary: `${safeNumber(forecast.competitive_advantage_gain).toFixed(0)}%`, detail: forecast.summary || "" },
+        { title: "Enterprise Adoption Impact", summary: `${safeNumber(forecast.enterprise_adoption_impact).toFixed(0)}%`, detail: forecast.summary || "" },
+      ];
+      industryCompareForecast.innerHTML = renderIndustryList(forecastItems, "No forecast available");
+    }
+    if (industryCompareReadiness) {
+      const readinessItems = [
+        { title: "Governance Readiness", summary: `${safeNumber(readiness.governance_readiness).toFixed(0)} / 100` },
+        { title: "Compliance Readiness", summary: `${safeNumber(readiness.compliance_readiness).toFixed(0)} / 100` },
+        { title: "Security Readiness", summary: `${safeNumber(readiness.security_readiness).toFixed(0)} / 100` },
+        { title: "Enterprise Readiness", summary: `${safeNumber(readiness.enterprise_readiness).toFixed(0)} / 100` },
+        { title: "Overall Executive Readiness", summary: `${safeNumber(readiness.overall_executive_readiness_score).toFixed(0)} / 100` },
+      ];
+      industryCompareReadiness.innerHTML = renderIndustryList(readinessItems, "No readiness score available");
+    }
+    if (industryCompareBoardRecommendations) {
+      industryCompareBoardRecommendations.innerHTML = renderIndustryStructuredList(boardRecommendations, "No board recommendations yet", (entry) => ({
+        title: `${entry.focus || "Board"} • ${entry.priority || "Priority"}`,
+        summary: entry.recommendation || "",
+      }));
+    }
+    persistIndustryExportContext("compare", item);
+  }
+
+  function renderIndustryLeaderboards({ trends = [], competitors = [], keywords = [], company = null } = {}) {
+    const trendList = Array.isArray(trends) ? trends : [];
+    const competitorList = Array.isArray(competitors) ? competitors : [];
+    const keywordList = Array.isArray(keywords) ? keywords : [];
+
+    const modelCandidates = keywordList
+      .filter((item) => {
+        const term = String(item.keyword || "").toLowerCase();
+        return ["claude", "gpt", "gemini", "llm", "mistral", "llama", "model", "openai", "anthropic"].some((needle) => term.includes(needle));
+      })
+      .sort((left, right) => safeNumber(right.momentum_score || right.growth_score) - safeNumber(left.momentum_score || left.growth_score))
+      .slice(0, 5)
+      .map((item) => ({
+        title: item.keyword,
+        summary: item.executive_summary || item.keyword_group || "",
+        detail: `${safeNumber(item.momentum_score).toFixed(0)} momentum • ${safeNumber(item.growth_score).toFixed(0)} growth`,
+      }));
+
+    const companyCandidates = competitorList
+      .slice()
+      .sort((left, right) => safeNumber(right.momentum_score || right.market_momentum_score) - safeNumber(left.momentum_score || left.market_momentum_score))
+      .slice(0, 5)
+      .map((item) => ({
+        title: item.name || item.competitor_name,
+        summary: item.activity_summary || item.strategic_position || "",
+        detail: `${safeNumber(item.momentum_score || item.market_momentum_score).toFixed(0)} momentum`,
+      }));
+
+    const conceptCandidates = trendList
+      .slice()
+      .sort((left, right) => safeNumber(right.momentum_score) - safeNumber(left.momentum_score))
+      .slice(0, 5)
+      .map((item) => ({
+        title: item.trend_name || item.keyword || "Concept",
+        summary: item.executive_summary || "",
+        detail: `${safeNumber(item.momentum_score).toFixed(0)} momentum • ${safeNumber(item.growth_score).toFixed(0)} growth`,
+      }));
+
+    if (industryLeaderboardModels) {
+      industryLeaderboardModels.innerHTML = renderIndustryList(modelCandidates, "No model signals yet");
+    }
+    if (industryLeaderboardCompanies) {
+      industryLeaderboardCompanies.innerHTML = renderIndustryList(companyCandidates, company?.company_name ? company.company_name : "No company signals yet");
+    }
+    if (industryLeaderboardConcepts) {
+      industryLeaderboardConcepts.innerHTML = renderIndustryList(conceptCandidates, "No concept signals yet");
+    }
+  }
+
+  function renderIndustryTrendHistory(history = null) {
+    const item = history || {};
+    const points = Array.isArray(item.history) ? item.history : [];
+    if (industrySearchHistoryCurrent) industrySearchHistoryCurrent.textContent = item.current_score !== undefined ? safeNumber(item.current_score).toFixed(0) : "-";
+    if (industrySearchHistoryPrevious) industrySearchHistoryPrevious.textContent = item.previous_score !== undefined ? safeNumber(item.previous_score).toFixed(0) : "-";
+    if (industrySearchHistoryDelta) {
+      const delta = safeNumber(item.delta);
+      industrySearchHistoryDelta.textContent = `${delta >= 0 ? "+" : ""}${delta.toFixed(0)}`;
+    }
+    if (industrySearchHistoryDirection) {
+      industrySearchHistoryDirection.textContent = item.movement_label || item.direction || "-";
+    }
+    if (industrySearchHistoryStrip) {
+      if (!points.length) {
+        industrySearchHistoryStrip.innerHTML = "";
+      } else {
+        const minScore = Math.min(...points.map((point) => safeNumber(point.trend_score)));
+        const maxScore = Math.max(...points.map((point) => safeNumber(point.trend_score)));
+        const spread = Math.max(1, maxScore - minScore);
+        industrySearchHistoryStrip.innerHTML = points
+          .slice(-10)
+          .map((point) => {
+            const score = safeNumber(point.trend_score);
+            const height = Math.max(8, Math.round(((score - minScore) / spread) * 28) + 8);
+            const direction = String(point.momentum || item.direction || "stable").toLowerCase();
+            const cls = direction.includes("fall") ? "is-falling" : direction.includes("stable") ? "is-stable" : "";
+            return `<span class="industry-trend-history__bar ${cls}" title="${escapeHtml((point.timestamp || "") + " • " + score.toFixed(0))}" style="height:${height}px"></span>`;
+          })
+          .join("");
+      }
+    }
+  }
+
+  function setIndustrySearchLoading(isLoading) {
+    if (industrySearchButton) {
+      industrySearchButton.disabled = Boolean(isLoading);
+      industrySearchButton.classList.toggle("is-loading", Boolean(isLoading));
+    }
+    if (industrySearchInput) {
+      industrySearchInput.disabled = Boolean(isLoading);
+    }
+  }
+
+  async function handleIndustrySearch(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const query = String(industrySearchInput?.value || "").trim();
+    if (!query) {
+      return;
+    }
+    await loadIndustrySearch(query);
+  }
+
+  function setIndustryProductImpactLoading(isLoading) {
+    if (industryProductImpactBtn) {
+      industryProductImpactBtn.disabled = Boolean(isLoading);
+      industryProductImpactBtn.classList.toggle("is-loading", Boolean(isLoading));
+    }
+    if (industryProductImpactName) {
+      industryProductImpactName.disabled = Boolean(isLoading);
+    }
+    if (industryProductImpactDescription) {
+      industryProductImpactDescription.disabled = Boolean(isLoading);
+    }
+  }
+
+  async function handleIndustryProductImpact(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const featureName = String(industryProductImpactName?.value || "").trim();
+    const featureDescription = String(industryProductImpactDescription?.value || "").trim();
+    if (!featureName && !featureDescription) {
+      showToast("Enter a feature name or description first.");
+      return;
+    }
+
+    setLoading(true);
+    setIndustryProductImpactLoading(true);
+    setStatus("Analyzing product impact...");
+    try {
+      const response = await fetch("/api/industry/product-impact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          feature_name: featureName || featureDescription.slice(0, 120) || "New feature",
+          feature_description: featureDescription,
+        }),
+      });
+      if (handleAuthRedirect(response)) return;
+      const data = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(data?.error || `Request failed (${response.status})`);
+      }
+      if (!data?.success && data?.success !== undefined) {
+        throw new Error(data?.error || "Product impact analysis failed");
+      }
+      renderIndustryProductImpactResult(data);
+      persistIndustryExportContext("product-impact", data);
+      showToast("Product impact analysis generated.");
+      addActivity(
+        `Analyzed product impact for ${data.feature_name || featureName || "a feature"}.`,
+        "success",
+        data.recommended_launch_priority || ""
+      );
+    } catch (error) {
+      console.error("Failed to analyze product impact", error);
+      showToast("Unable to analyze product impact right now.");
+      if (industryProductImpactResultBody) {
+        industryProductImpactResultBody.innerHTML = `
+          <div class="industry-search-result__panel industry-search-result__panel--wide">
+            <span class="industry-summary-card__label">Product Impact Intelligence</span>
+            <p>Unable to generate a launch readiness report right now. Please try again.</p>
+          </div>
+        `;
+      }
+      if (industryProductImpactResultCard) {
+        industryProductImpactResultCard.hidden = false;
+      }
+    } finally {
+      setIndustryProductImpactLoading(false);
+      setLoading(false);
+    }
+  }
+
+  async function handleIndustryCompare(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const q1 = String(industryCompareQ1?.value || "").trim();
+    const q2 = String(industryCompareQ2?.value || "").trim();
+    if (!q1 || !q2) {
+      return;
+    }
+    if (industryCompareBtn) {
+      industryCompareBtn.disabled = true;
+    }
+    try {
+      const response = await fetch(`/api/industry/compare?q1=${encodeURIComponent(q1)}&q2=${encodeURIComponent(q2)}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = "/login";
+        return;
+      }
+      const data = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(data?.detail || data?.error || `Compare failed (${response.status})`);
+      }
+      if (!data?.success && data?.success !== undefined) {
+        throw new Error(data?.detail || data?.error || "Comparison intelligence failed");
+      }
+      renderIndustryComparison(data);
+      showToast(`Comparison generated for ${q1} vs ${q2}.`);
+    } catch (error) {
+      console.error("Industry comparison failed", error);
+      renderIndustryComparison({
+        q1,
+        q2,
+        trend_score: 0,
+        momentum: "Low",
+        growth_score: 0,
+        keyword_overlap: [],
+        recent_news: [],
+        strengths: [],
+        weaknesses: [],
+        executive_summary: `We could not compare ${q1} and ${q2} right now.`,
+      });
+      showToast("Unable to run comparison right now.");
+    } finally {
+      if (industryCompareBtn) {
+        industryCompareBtn.disabled = false;
+      }
+    }
+  }
+
+  async function loadIndustrySearch(query, { silent = false } = {}) {
+    const searchQuery = String(query || industrySearchInput?.value || "").trim();
+    if (!searchQuery) {
+      renderIndustrySearchResult(null);
+      return null;
+    }
+
+    if (industrySearchInput) {
+      industrySearchInput.value = searchQuery;
+    }
+
+    setIndustrySearchLoading(true);
+    try {
+      const response = await fetch(`/api/industry/search?q=${encodeURIComponent(searchQuery)}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = "/login";
+        return null;
+      }
+      const data = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(data?.detail || data?.error || `Search failed (${response.status})`);
+      }
+      if (!data?.success && data?.success !== undefined) {
+        throw new Error(data?.detail || data?.error || "Search intelligence failed");
+      }
+      renderIndustrySearchResult(data);
+      if (!silent) {
+        showToast(`Search intelligence generated for ${searchQuery}.`);
+      }
+      return data;
+    } catch (error) {
+      console.error("Industry search failed", error);
+      const fallback = {
+        query: searchQuery,
+        trend_score: 0,
+        momentum: "Low",
+        growth_score: 0,
+        related_keywords: [searchQuery],
+        recent_news: [],
+        competitor_mentions: [],
+        executive_summary: `We could not fetch live search intelligence for ${searchQuery} right now.`,
+        recommendation: "Try again in a moment or use a broader AI topic keyword.",
+        confidence_score: 0,
+      };
+      renderIndustrySearchResult(fallback);
+      if (!silent) {
+        showToast("Unable to run industry search right now.");
+      }
+      return fallback;
+    } finally {
+      setIndustrySearchLoading(false);
+    }
+  }
+
+  function renderIndustryDashboard(payload = {}) {
+    const company = payload.company || null;
+    const trends = Array.isArray(payload.trends) ? payload.trends : [];
+    const competitors = Array.isArray(payload.competitors) ? payload.competitors : [];
+    const insights = Array.isArray(payload.insights) ? payload.insights : [];
+    const opportunities = Array.isArray(payload.opportunities) ? payload.opportunities : [];
+    const keywords = Array.isArray(payload.keywords) ? payload.keywords : [];
+    const recommendations = Array.isArray(payload.recommendations) ? payload.recommendations : [];
+    const report = payload.report || null;
+    const sourceCoverage = payload.sourceCoverage || deriveIndustrySourceCoverage(payload);
+
+    state.industry = {
+      ...state.industry,
+      company,
+      trends,
+      competitors,
+      insights,
+      opportunities,
+      keywords,
+      recommendations,
+      report,
+      snapshot: {
+        company,
+        trends,
+        competitors,
+        insights,
+        opportunities,
+        keywords,
+        recommendations,
+        report,
+      },
+      lastUpdated: payload.lastUpdated || new Date().toISOString(),
+      sourceCoverage,
+      search: state.industry.search || {
+        query: "",
+        result: null,
+        lastUpdated: null,
+        loaded: false,
+      },
+      loaded: true,
+    };
+    if (!state.industry.exportContext || state.industry.exportContext.type === "snapshot") {
+      persistIndustryExportContext("snapshot", state.industry.snapshot);
+    }
+
+    renderIndustryCompany(company);
+    renderIndustryTrendCards(trends);
+    renderIndustryCompetitorCards(competitors);
+    renderIndustryInsightCards(insights);
+    renderIndustryOpportunityCards(opportunities);
+    renderIndustryRecommendationCards(recommendations);
+    renderIndustryKeywordGroups(keywords);
+    renderIndustryReport(report);
+    renderIndustrySourceCoverage(sourceCoverage);
+    if (industryReportPdfBtn) {
+      industryReportPdfBtn.disabled = false;
+    }
+
+    renderIndustryCount(industryTrendCount, trends.length);
+    renderIndustryCount(industryCompetitorCount, competitors.length);
+    renderIndustryCount(industryInsightCount, recommendations.length || insights.length);
+    renderIndustryCount(industryOpportunityCount, opportunities.length);
+  }
+
+  async function loadIndustryDashboard({ silent = false, forceRefresh = false } = {}) {
+    if (industryRefreshBtn) {
+      industryRefreshBtn.disabled = true;
+      industryRefreshBtn.classList.add("is-loading");
+    }
+    try {
+      let refreshPayload = null;
+      if (forceRefresh) {
+        const refreshResponse = await fetch("/api/industry/refresh", {
+          method: "POST",
+          headers: { Accept: "application/json" },
+        });
+        if (refreshResponse.status === 401 || refreshResponse.status === 403) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!refreshResponse.ok) {
+          throw new Error("Failed to refresh industry intelligence");
+        }
+        refreshPayload = await refreshResponse.json();
+      }
+      const [companyResponse, trendsResponse, recommendationsResponse, competitorResponse, keywordsResponse, reportResponse, opportunitiesResponse] = await Promise.all([
+        fetch("/api/industry/company-intelligence", { headers: { Accept: "application/json" } }),
+        fetch("/api/industry/live-trends", { headers: { Accept: "application/json" } }),
+        fetch("/api/industry/recommendations", { headers: { Accept: "application/json" } }),
+        fetch("/api/industry/competitor-activity", { headers: { Accept: "application/json" } }),
+        fetch("/api/industry/keywords", { headers: { Accept: "application/json" } }),
+        fetch("/api/industry/report", { headers: { Accept: "application/json" } }),
+        fetch("/api/industry/opportunities", { headers: { Accept: "application/json" } }),
+      ]);
+
+      const responses = [companyResponse, trendsResponse, recommendationsResponse, competitorResponse, keywordsResponse, reportResponse, opportunitiesResponse];
+      if (responses.some((response) => response.status === 401 || response.status === 403)) {
+        window.location.href = "/login";
+        return;
+      }
+      if (responses.some((response) => !response.ok)) {
+        throw new Error("Failed to load industry intelligence");
+      }
+
+      const [companyData, trendsData, recommendationsData, competitorsData, keywordsData, reportData, opportunitiesData] = await Promise.all(
+        responses.map((response) => response.json())
+      );
+
+      renderIndustryDashboard({
+        company: companyData?.item || null,
+        trends: Array.isArray(trendsData?.items) ? trendsData.items : [],
+        competitors: Array.isArray(competitorsData?.items) ? competitorsData.items : [],
+        recommendations: Array.isArray(recommendationsData?.items) ? recommendationsData.items : [],
+        keywords: Array.isArray(keywordsData?.items) ? keywordsData.items : [],
+        report: reportData?.item || null,
+        lastUpdated: refreshPayload?.last_updated || reportData?.item?.generated_at || companyData?.item?.last_updated || new Date().toISOString(),
+        opportunities: Array.isArray(opportunitiesData?.items) && opportunitiesData.items.length
+          ? opportunitiesData.items
+          : Array.isArray(reportData?.item?.strategic_opportunities) ? reportData.item.strategic_opportunities : [],
+        insights: Array.isArray(reportData?.item?.top_trends) ? reportData.item.top_trends.map((item) => ({
+          insight_title: item.trend_name,
+          what_is_trending: item.executive_summary,
+          why_it_matters: item.executive_summary,
+          business_impact: item.growth_score ? `Growth score ${item.growth_score}` : "",
+          recommended_action: item.executive_summary,
+        })) : [],
+        sourceCoverage: deriveIndustrySourceCoverage({
+          ...refreshPayload,
+          company: companyData?.item || null,
+          recommendations: Array.isArray(recommendationsData?.items) ? recommendationsData.items : [],
+          competitors: Array.isArray(competitorsData?.items) ? competitorsData.items : [],
+          news: Array.isArray(reportData?.item?.top_trends) ? reportData.item.top_trends : [],
+          linkedin: {
+            source_label: refreshPayload?.source_coverage?.[0] || (companyData?.item ? "Available" : "Unavailable"),
+            source_status: refreshPayload?.source_coverage?.[0] ? "apify" : "fallback",
+          },
+        }),
+      });
+
+      renderIndustryLeaderboards({
+        trends: Array.isArray(trendsData?.items) ? trendsData.items : [],
+        competitors: Array.isArray(competitorsData?.items) ? competitorsData.items : [],
+        keywords: Array.isArray(keywordsData?.items) ? keywordsData.items : [],
+        company: companyData?.item || null,
+      });
+
+      if (state.industry.search?.query) {
+        await loadIndustrySearch(state.industry.search.query, { silent: true });
+      }
+
+      if (!silent) {
+        showToast(forceRefresh ? "Industry Intelligence refreshed." : "Industry Intelligence loaded.");
+      }
+    } catch (error) {
+      console.error("Failed to load industry intelligence", error);
+      renderIndustryDashboard({
+        company: {
+          company_name: "Giggso",
+          company_summary: "Giggso is positioned as a governance-first enterprise AI company focused on making AI safe, secure, observable, and production ready.",
+          strategic_direction: "Lead enterprise buyers from AI experimentation to controlled production adoption through governance, security, and compliance tooling.",
+          market_narrative: "The market is rewarding vendors that can reduce AI risk while accelerating enterprise deployment and proving business value.",
+          core_focus_areas: ["AI Governance", "AI Security", "Enterprise AI"],
+          recent_strategic_themes: ["AI Governance automation", "AI Security and LLM controls"],
+          focus_keywords: ["AI Governance", "Agentic AI", "LLM Security"],
+          headquarters: "Troy, Michigan",
+          company_size: "51-200 employees",
+        },
+        trends: [],
+        competitors: [],
+        recommendations: [],
+        keywords: [],
+        report: {
+          top_trends: [],
+          competitor_highlights: [],
+          strategic_risks: [],
+          strategic_opportunities: [],
+          executive_recommendations: [],
+        },
+        opportunities: [],
+        insights: [],
+        sourceCoverage: deriveIndustrySourceCoverage({
+          company: { company_name: "Giggso" },
+          recommendations: [],
+          competitors: [],
+          news: [],
+          linkedin: { source_label: "Fallback", source_status: "fallback" },
+          source_coverage: ["Fallback"],
+          lastUpdated: new Date().toISOString(),
+        }),
+      });
+      if (!silent) {
+        showToast("Using cached industry intelligence.");
+      }
+    } finally {
+      if (industryRefreshBtn) {
+        industryRefreshBtn.disabled = false;
+        industryRefreshBtn.classList.remove("is-loading");
+      }
+    }
   }
 
   function renderThumbnailAnalysis(result) {
@@ -1611,22 +3376,38 @@ function setupDashboard(root) {
     if (performanceRegionBadge) {
       performanceRegionBadge.textContent = `Region: ${region}`;
     }
+    debugLog("Selected Region", region);
     return region;
   }
 
   async function loadCurrentTrends({ silent = false } = {}) {
     const region = getSelectedTrendRegion();
+    const topic = String(trendTopicInput?.value || "").trim();
+    const platform = String(platformFilter?.value || "all").trim();
+    const category = String(getSelectedTrendMode() || "ai").trim();
     const payload = {
       region,
-      niche: creatorTitle?.value?.trim() || creatorContentType?.value || "",
-      platform: creatorPlatform?.value || "LinkedIn",
+      topic,
+      platform,
+      category,
       limit: 12,
     };
     try {
-      const response = await fetch("/api/fetch-trends", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(payload),
+      const url = new URL("/api/trends", window.location.origin);
+      url.searchParams.set("region", region);
+      url.searchParams.set("platform", platform);
+      url.searchParams.set("category", category);
+      if (topic) {
+        url.searchParams.set("topic", topic);
+      }
+      url.searchParams.set("limit", "12");
+      debugLog("selectedRegion", region);
+      debugLog("selectedPlatform", platform);
+      debugLog("selectedCategory", category);
+      debugLog("finalApiUrl", url.toString());
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json" },
       });
       if (response.status === 401 || response.status === 403) {
         window.location.href = "/login";
@@ -1634,16 +3415,19 @@ function setupDashboard(root) {
       }
       if (!response.ok) throw new Error(`Failed to load current trends (${response.status})`);
       const data = await response.json();
-      renderCurrentTrends(data);
+      debugLog("API Request Region", region);
+      debugLog("Number of trends returned", Array.isArray(data?.items) ? data.items.length : 0);
+      renderCurrentTrends({ ...data, selected_region: region, selected_topic: topic, selected_platform: platform, selected_category: category, empty_state: !Array.isArray(data?.items) || data.items.length === 0 });
       if (window.latestAnalysis || state.ws.currentCreatorPayload) {
         refreshCreatorStrategy({ silent: true });
       }
       if (!silent) {
-        showToast(`Loaded ${data.region_label || region} trend snapshot.`);
+        const returnedCount = Array.isArray(data?.items) ? data.items.length : 0;
+        showToast(returnedCount ? `Loaded ${data.region_label || region} trend snapshot.` : (data?.message || "No trends available for selected filters."));
       }
     } catch (error) {
       console.error(error);
-      renderCurrentTrends({ region_label: region, region, items: [], trend_keywords: [], source_labels: [] });
+      renderCurrentTrends({ region_label: region, region, items: [], trend_keywords: [], source_labels: [], empty_state: true, selected_category: category, selected_platform: platform, selected_topic: topic });
       if (!silent) {
         showToast("Unable to load regional trends right now.");
       }
@@ -2006,6 +3790,42 @@ function setupDashboard(root) {
       console.error(error);
       showToast("Could not export the PDF report right now.");
       setStatus("PDF export failed.");
+    }
+  }
+
+  async function downloadIndustryPdfReport() {
+    try {
+      const payload = buildIndustryPdfPayload();
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/pdf",
+        },
+        body: JSON.stringify(payload),
+      };
+      let response = await fetch("/api/industry/report/pdf", requestOptions);
+      if (handleAuthRedirect(response)) return;
+      if (response.status === 404) {
+        response = await fetch("/api/dev/industry/report/pdf", requestOptions);
+        if (handleAuthRedirect(response)) return;
+      }
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = "industry_report.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      showToast("Industry report downloaded.");
+    } catch (error) {
+      console.error("Failed to download industry board report", error);
+      showToast("Could not download the board report right now.");
     }
   }
 
@@ -2738,8 +4558,8 @@ function setupDashboard(root) {
         showDashboardStatus(`Loaded ${liveTrends.length} stored trends for ${getSelectedTrendRegion()}.`, "success");
         renderDashboardFromTrends(liveTrends);
       } else {
-        showDashboardStatus(`No live trends found for ${getSelectedTrendRegion()}.`, "warning");
-        renderFallbackDashboard();
+        showDashboardStatus(`No trends available for selected region (${getSelectedTrendRegion()}).`, "warning");
+        renderDashboardFromTrends([], { persist: false, pulseFallback: true });
       }
     } catch (error) {
       console.error(error);
@@ -5202,50 +7022,15 @@ function setupDashboard(root) {
   }
 
   function bindFilterEvents() {
-    if (searchInput) {
-      searchInput.addEventListener("input", () => {
-        state.filters.search = searchInput.value;
-        applyFilters();
-      });
-    }
-
-    if (trendModeSelect) {
-      trendModeSelect.addEventListener("change", () => {
-        window.selectedTrendMode = getSelectedTrendMode();
+    if (platformFilter) {
+      platformFilter.addEventListener("change", () => {
+        state.filters.platform = platformFilter.value;
         state.forecastMode = getSelectedTrendMode();
         syncForecastStudioUI(state.forecastMode);
         renderIntelligencePanel(state.filteredTrends.length ? state.filteredTrends : state.allTrends);
         if (window.latestAnalysis || state.ws.currentCreatorPayload) {
           renderAnalysisResult(window.latestAnalysis || state.ws.currentCreatorPayload);
         }
-      });
-    }
-
-    if (platformFilter) {
-      platformFilter.addEventListener("change", () => {
-        state.filters.platform = platformFilter.value;
-        applyFilters();
-      });
-    }
-
-    if (viralityFilter) {
-      viralityFilter.addEventListener("change", () => {
-        state.filters.virality = viralityFilter.value;
-        applyFilters();
-      });
-    }
-
-    if (sentimentFilter) {
-      sentimentFilter.addEventListener("change", () => {
-        state.filters.sentiment = sentimentFilter.value;
-        applyFilters();
-      });
-    }
-
-    if (sortFilter) {
-      sortFilter.addEventListener("change", () => {
-        state.filters.sort = sortFilter.value;
-        applyFilters();
       });
     }
   }
@@ -5264,6 +7049,24 @@ function setupDashboard(root) {
 
   if (refreshCurrentTrendsBtn) {
     refreshCurrentTrendsBtn.addEventListener("click", () => loadCurrentTrends({ silent: false }));
+  }
+
+  if (fetchTopicTrendsBtn) {
+    fetchTopicTrendsBtn.addEventListener("click", () => loadCurrentTrends({ silent: false }));
+  }
+
+  if (refreshTrendRadarBtn) {
+    refreshTrendRadarBtn.addEventListener("click", () => loadCurrentTrends({ silent: false }));
+  }
+
+  if (trendTopicInput) {
+    trendTopicInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        await loadCurrentTrends({ silent: false });
+      }
+    });
   }
 
   if (trendRegion) {
@@ -5385,6 +7188,10 @@ function setupDashboard(root) {
     exportPdfBtn.addEventListener("click", exportPdfReport);
   }
 
+  if (industryReportPdfBtn) {
+    industryReportPdfBtn.addEventListener("click", downloadIndustryPdfReport);
+  }
+
   if (creatorDemoBtn) {
     creatorDemoBtn.addEventListener("click", fillCreatorDemoIdea);
   }
@@ -5432,6 +7239,100 @@ function setupDashboard(root) {
 
   if (competitorForm) {
     competitorForm.addEventListener("submit", submitCompetitorAnalysis);
+  }
+
+  if (industryRefreshBtn) {
+    industryRefreshBtn.addEventListener("click", () => loadIndustryDashboard({ silent: false, forceRefresh: true }));
+  }
+
+  if (industrySearchInput) {
+    industrySearchInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleIndustrySearch(event);
+        return false;
+      }
+    });
+  }
+
+  if (industrySearchButton) {
+    industrySearchButton.addEventListener("click", handleIndustrySearch);
+  }
+
+  if (industryProductImpactName) {
+    industryProductImpactName.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleIndustryProductImpact(event);
+        return false;
+      }
+    });
+  }
+
+  if (industryProductImpactDescription) {
+    industryProductImpactDescription.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleIndustryProductImpact(event);
+        return false;
+      }
+    });
+  }
+
+  if (industryProductImpactBtn) {
+    industryProductImpactBtn.addEventListener("click", handleIndustryProductImpact);
+  }
+
+  if (industryTrendsGrid) {
+    industryTrendsGrid.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-industry-trend-index]");
+      if (!card) return;
+      const index = Number(card.dataset.industryTrendIndex);
+      const trend = Array.isArray(state.industry.trends) ? state.industry.trends[index] : null;
+      if (!trend) return;
+      persistIndustryExportContext("trend", trend);
+    });
+  }
+
+  if (industryCompareBtn) {
+    industryCompareBtn.addEventListener("click", handleIndustryCompare);
+  }
+
+  if (industryCompareQ1) {
+    industryCompareQ1.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleIndustryCompare(event);
+        return false;
+      }
+    });
+  }
+
+  if (industryCompareQ2) {
+    industryCompareQ2.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleIndustryCompare(event);
+        return false;
+      }
+    });
+  }
+
+  if (industryCompareBox) {
+    industryCompareBox.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-industry-compare-q1]");
+      if (!button) return;
+      const q1 = button.dataset.industryCompareQ1 || "";
+      const q2 = button.dataset.industryCompareQ2 || "";
+      if (industryCompareQ1) industryCompareQ1.value = q1;
+      if (industryCompareQ2) industryCompareQ2.value = q2;
+      handleIndustryCompare(event);
+    });
   }
 
   if (currentTrendsRefreshBtn) {
@@ -5487,10 +7388,18 @@ function setupDashboard(root) {
 
   dashboardTabs.forEach((button) => {
     button.addEventListener("click", () => {
+      if (workspace === "industry") {
+        showIndustrySection(button.dataset.dashboardTab || "executive");
+        return;
+      }
       setDashboardTab(button.dataset.dashboardTab || "dashboard");
     });
   });
-  setDashboardTab(state.activeTab || "dashboard");
+  if (workspace === "industry") {
+    showIndustrySection(state.activeTab || defaultDashboardTab);
+  } else {
+    setDashboardTab(state.activeTab || defaultDashboardTab);
+  }
 
   if (modal) {
     modal.addEventListener("click", (event) => {
@@ -5563,6 +7472,9 @@ function setupDashboard(root) {
     if (state.ws.refreshTimer) {
       window.clearTimeout(state.ws.refreshTimer);
     }
+    if (state.industry.refreshTimer) {
+      window.clearInterval(state.industry.refreshTimer);
+    }
     if (state.ws.socket) {
       try {
         state.ws.socket.close();
@@ -5579,7 +7491,19 @@ function setupDashboard(root) {
   syncCreatorModeUI(getSelectedCreatorMode());
   renderPlatformIntelligence(null);
   renderFallbackDashboard();
+  renderIndustrySearchResult(null);
+  renderIndustryComparison(null);
+  renderIndustryLeaderboards();
   loadDashboard();
+  loadIndustryDashboard({ silent: true, forceRefresh: true });
+  if (state.industry.refreshTimer) {
+    window.clearInterval(state.industry.refreshTimer);
+  }
+  state.industry.refreshTimer = window.setInterval(() => {
+    if (state.activeTab === "industry-intelligence" || state.industry.loaded) {
+      loadIndustryDashboard({ silent: true, forceRefresh: true });
+    }
+  }, 300000);
   loadAlerts();
   loadPostPerformance();
   loadCurrentTrends({ silent: true });

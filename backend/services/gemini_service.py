@@ -43,7 +43,7 @@ class GeminiService:
 
         prompt = self._build_prompt(title, description)
         try:
-            model = self._client.GenerativeModel("gemini-1.5-flash")
+            model = self._client.GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
             parsed = self._parse_json(getattr(response, "text", ""))
             if parsed:

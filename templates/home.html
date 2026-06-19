@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero hero--landing reveal">
+  <div class="hero-copy">
+    <p class="eyebrow">Real-time viral trend intelligence</p>
+    <h1>Turn emerging signals into content that gets seen.</h1>
+    <p class="lead">
+      TrendHunter AI helps users discover emerging trends, analyze signals, forecast opportunities, and generate intelligence.
+    </p>
+
+    <div class="actions">
+      <a class="button primary button--glow" href="/dashboard">Start Predicting Trends</a>
+      <a class="button secondary" href="/industry-intelligence">Explore Industry Intelligence</a>
+      {% if not request.state.current_user %}
+      <a class="button secondary" href="/login">Login</a>
+      {% endif %}
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-card">
+        <span class="stat-value">3x</span>
+        <span class="stat-label">faster topic validation</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">24/7</span>
+        <span class="stat-label">signal monitoring</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">AI</span>
+        <span class="stat-label">content brief generation</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="glass-panel glass-panel--floating analytics-card">
+      <div class="analytics-header">
+        <span class="chip chip--live">Live trend preview</span>
+        <span class="status-dot">Monitoring</span>
+      </div>
+      <div class="mini-chart">
+        <span style="height: 38%"></span>
+        <span style="height: 52%"></span>
+        <span style="height: 66%"></span>
+        <span style="height: 56%"></span>
+        <span style="height: 82%"></span>
+        <span style="height: 74%"></span>
+      </div>
+      <div class="analytics-footer">
+        <div>
+          <p class="kpi-label">Virality score</p>
+          <strong>92%</strong>
+        </div>
+        <div>
+          <p class="kpi-label">Momentum</p>
+          <strong>Rising fast</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="signal-orbit">
+      <div class="orbit-node orbit-node--center">AI</div>
+      <div class="orbit-node orbit-node--top">Reddit</div>
+      <div class="orbit-node orbit-node--right">Search</div>
+      <div class="orbit-node orbit-node--bottom">Sentiment</div>
+      <div class="orbit-node orbit-node--left">Gemini</div>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Choose Your Workspace</p>
+      <h2>Two premium products, one ecosystem.</h2>
+    </div>
+    <p class="muted section-copy">
+      Choose the workspace that matches the kind of intelligence you want to explore today.
+    </p>
+  </div>
+
+  <div class="workspace-grid">
+    <article class="workspace-card glass-panel">
+      <div class="workspace-card__heading">
+        <span class="workspace-card__icon">📈</span>
+        <div>
+          <p class="eyebrow">Trend Intelligence</p>
+          <h2>Creator and market signals</h2>
+        </div>
+      </div>
+      <p>
+        Analyze trends, virality, forecasting, creator insights, market signals, and opportunity detection.
+      </p>
+      <a class="button primary button--glow" href="/dashboard">Open Trend Intelligence</a>
+    </article>
+
+    <article class="workspace-card glass-panel">
+      <div class="workspace-card__heading">
+        <span class="workspace-card__icon">🏢</span>
+        <div>
+          <p class="eyebrow">Industry Intelligence</p>
+          <h2>Enterprise AI market intelligence</h2>
+        </div>
+      </div>
+      <p>
+        Enterprise AI intelligence, competitor analysis, governance, compliance, executive insights,
+        board reporting, and market opportunities.
+      </p>
+      <a class="button primary button--glow" href="/industry-intelligence">Open Industry Intelligence</a>
+    </article>
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Features</p>
+      <h2>Everything you need to spot trends before everyone else.</h2>
+    </div>
+    <p class="muted section-copy">
+      Designed for fast-moving creators, marketers, and solo founders who need clarity on what to make next.
+    </p>
+  </div>
+
+  <div class="feature-grid feature-grid--landing">
+    <article class="feature-card feature-card--highlight">
+      <span class="feature-icon">01</span>
+      <h3>Trend Discovery Engine</h3>
+      <p>Pull together Reddit chatter and search momentum into one clear signal stream.</p>
+    </article>
+    <article class="feature-card">
+      <span class="feature-icon">02</span>
+      <h3>Virality Scoring</h3>
+      <p>Rank topics with a practical score so your team can focus on high-upside ideas first.</p>
+    </article>
+    <article class="feature-card">
+      <span class="feature-icon">03</span>
+      <h3>Content Briefs</h3>
+      <p>Get hooks, angles, and talking points tailored to the trend and the platform.</p>
+    </article>
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">AI Agents</p>
+      <h2>Specialized agents working together behind the scenes.</h2>
+    </div>
+  </div>
+
+  <div class="agent-grid">
+    <article class="agent-card glass-panel">
+      <span class="agent-pill">Trend Fetcher</span>
+      <h3>Collects emerging topics</h3>
+      <p>Combines platform signals into a single list of candidate trends worth watching.</p>
+    </article>
+    <article class="agent-card glass-panel">
+      <span class="agent-pill">Sentiment Agent</span>
+      <h3>Reads the audience mood</h3>
+      <p>Estimates whether attention is leaning positive, skeptical, or ready to share.</p>
+    </article>
+    <article class="agent-card glass-panel">
+      <span class="agent-pill">Virality Agent</span>
+      <h3>Scores breakout potential</h3>
+      <p>Weights engagement, freshness, and momentum to surface the strongest opportunities.</p>
+    </article>
+    <article class="agent-card glass-panel">
+      <span class="agent-pill">Content Agent</span>
+      <h3>Shapes the angle</h3>
+      <p>Turns raw trend data into creator-friendly prompts, hooks, and short-form outlines.</p>
+    </article>
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Dashboard Preview</p>
+      <h2>A live command center for your next content move.</h2>
+    </div>
+  </div>
+
+  <div class="preview-grid">
+    <div class="dashboard-preview glass-panel">
+      <div class="preview-top">
+        <span class="chip">Trend leaderboard</span>
+        <span class="preview-tag">Updated moments ago</span>
+      </div>
+      <div class="preview-list">
+        <div class="preview-row">
+          <div>
+            <strong>AI productivity workflows</strong>
+            <p>Technology · Reddit + search growth</p>
+          </div>
+          <span>92%</span>
+        </div>
+        <div class="preview-row">
+          <div>
+            <strong>Short-form editing hacks</strong>
+            <p>Creator economy · strong engagement</p>
+          </div>
+          <span>89%</span>
+        </div>
+        <div class="preview-row">
+          <div>
+            <strong>Studio setup upgrades</strong>
+            <p>Design · rising attention curve</p>
+          </div>
+          <span>84%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-card feature-card">
+      <h3>Trend Analytics Snapshot</h3>
+      <p>See the story behind the score with readable momentum, sentiment, and source data.</p>
+      <div class="radar">
+        <div class="radar-ring"></div>
+        <div class="radar-ring radar-ring--inner"></div>
+        <div class="radar-sweep"></div>
+        <div class="radar-point radar-point--1"></div>
+        <div class="radar-point radar-point--2"></div>
+        <div class="radar-point radar-point--3"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer reveal">
+  <div>
+    <strong>TrendHunter AI</strong>
+    <p>Real-time viral trend prediction for creators who move first.</p>
+  </div>
+  <a class="button secondary" href="/dashboard">Open Trend Intelligence</a>
+</footer>
+{% endblock %}

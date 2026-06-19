@@ -16,7 +16,7 @@ from backend.auth import get_current_user_optional
 from backend.config import settings
 from backend.database import init_db
 from backend.routers.auth import router as auth_router
-from backend.routers.api import router as api_router
+from backend.routers.api import dev_router, router as api_router
 from backend.routers.web import router as web_router
 from backend.routers.ws import router as ws_router
 from backend.websocket_manager import websocket_manager
@@ -57,6 +57,8 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(web_router)
 app.include_router(auth_router)
 app.include_router(api_router)
+if settings.app_env.lower() in {"development", "dev", "local"}:
+    app.include_router(dev_router)
 app.include_router(ws_router)
 
 

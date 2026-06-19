@@ -7,15 +7,29 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.content_agent import ContentAgent
 from backend.alert_agent import AlertAgent
 from backend.auth import require_current_user
+from backend.config import settings
 from backend.database import (
     create_alert,
+    get_industry_company,
+    get_industry_competitors,
+    get_industry_competitor_activity,
+    get_industry_insights,
+    get_industry_opportunities,
+    get_industry_keywords,
+    get_industry_live_trends,
+    get_industry_recommendations,
+    get_industry_report,
+    get_industry_trends,
+    get_trend_history,
+    get_trend_history_leaderboard,
+    refresh_industry_live_data,
     get_user_workspace,
     get_alerts,
     get_content_idea_by_trend_id,
@@ -36,8 +50,10 @@ from backend.database import (
     update_trend_forecast,
     update_trend_analysis,
     mark_alert_as_read,
+    _normalize_region_value,
 )
 from backend.services.gemini_service import GeminiService
+from backend.services.industry_intelligence_service import industry_intelligence_service
 from backend.services.forecast_service import ForecastService
 from backend.services.creator_strategy_service import CreatorStrategyService
 from backend.services.ai_chat_service import AIChatService
@@ -57,6 +73,7 @@ from backend.websocket_manager import websocket_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["AI"], dependencies=[Depends(require_current_user)])
+dev_router = APIRouter(prefix="/api/dev", tags=["AI Dev"])
 trend_fetcher = TrendFetcher()
 sentiment_agent = SentimentAgent()
 virality_agent = ViralityAgent()
@@ -72,6 +89,14 @@ post_intelligence_service = PostIntelligenceService()
 insight_tools = InsightTools()
 creator_strategy_service = CreatorStrategyService()
 ai_chat_service = AIChatService()
+
+
+def _ensure_dev_validation_enabled() -> None:
+    if settings.app_env.lower() not in {"development", "dev", "local"}:
+        raise HTTPException(
+            status_code=404,
+            detail="Development validation endpoints are disabled outside development mode.",
+        )
 
 
 class CreatorIntelligenceRequest(BaseModel):
@@ -126,9 +151,16 @@ class CompetitorAnalysisRequest(BaseModel):
 
 class TrendFetchRequest(BaseModel):
     region: str = "India"
+    topic: str | None = None
     niche: str | None = None
     platform: str | None = None
+    mode: str | None = None
     limit: int = 12
+
+
+class ProductImpactRequest(BaseModel):
+    feature_name: str = Field(..., min_length=1)
+    feature_description: str = Field(default="")
 
 
 def _region_to_country_code(region: str) -> str:
@@ -291,20 +323,464 @@ def _creator_analysis_response(payload: CreatorIntelligenceRequest) -> dict:
 
 
 @router.get("/trends")
-def get_trends(region: str = "Global"):
-    trends = get_all_trends(region=region)
-    alerts = get_alerts(200)
-    alerted_trend_ids = {alert["trend_id"] for alert in alerts}
-    trends_with_flags = [
-        {
-            **trend,
-            "has_content_idea": get_content_idea_by_trend_id(trend["id"]) is not None,
-            "has_alert": trend["id"] in alerted_trend_ids,
-            "has_forecast": trend.get("prediction_label") is not None,
+def get_trends(region: str = "Global", platform: str = "all", category: str = "ai", topic: str | None = None, limit: int = 100):
+    try:
+        region_value = _normalize_region_value(region).lower()
+        platform_value = str(platform or "all").strip().lower()
+        category_value = _normalize_trend_category(category)
+        topic_value = str(topic or "").strip().lower()
+        print("Region:", region_value)
+        print("Platform:", platform_value)
+        print("Category:", category_value)
+        trends = get_all_trends(limit=max(1, min(int(limit or 100), 250)), region=region_value)
+        if region_value and region_value != "global":
+            trends = [trend for trend in trends if str(trend.get("region") or "").strip().lower() == region_value]
+        if platform_value and platform_value != "all":
+            trends = [trend for trend in trends if str(trend.get("platform") or trend.get("source_type") or trend.get("source") or "").strip().lower() == platform_value]
+        if category_value:
+            trends = [trend for trend in trends if _trend_matches_category(trend, category_value, topic_value)]
+        trends = _dedupe_trends(trends)
+        alerts = get_alerts(200)
+        alerted_trend_ids = {alert["trend_id"] for alert in alerts}
+        trends_with_flags = [
+            {
+                **trend,
+                "has_content_idea": get_content_idea_by_trend_id(trend["id"]) is not None,
+                "has_alert": trend["id"] in alerted_trend_ids,
+                "has_forecast": trend.get("prediction_label") is not None,
+            }
+            for trend in trends
+        ]
+        logger.info("Trend fetch filters region=%s platform=%s category=%s resultCount=%s", region_value, platform_value, category_value, len(trends_with_flags))
+        if not trends_with_flags:
+            return {
+                "success": True,
+                "trends": [],
+                "items": [],
+                "count": 0,
+                "region": region_value,
+                "platform": platform_value,
+                "category": category_value,
+                "message": f"No AI trends found for {region_value.title()}",
+            }
+        return {"success": True, "items": trends_with_flags, "trends": trends_with_flags, "count": len(trends_with_flags), "region": region_value, "platform": platform_value, "category": category_value}
+    except Exception as exc:
+        logger.exception("Failed /api/trends")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(exc),
+            },
+        )
+
+
+def _normalize_trend_category(value: str | None) -> str:
+    text = str(value or "ai").strip().lower().replace("_", " ").replace("-", " ")
+    text = " ".join(text.split())
+    aliases = {
+        "ai": "ai",
+        "artificial intelligence": "ai",
+        "technology": "technology",
+        "machine learning": "machine learning",
+        "ml": "machine learning",
+        "data science": "data science",
+        "software development": "software development",
+        "software dev": "software development",
+        "startups": "startups",
+        "startup": "startups",
+        "business": "business",
+        "finance": "finance",
+        "education": "education",
+        "healthcare": "healthcare",
+        "sports": "sports",
+        "entertainment": "entertainment",
+        "marketing": "marketing",
+        "cyber security": "cyber security",
+        "cybersecurity": "cyber security",
+        "security": "cyber security",
+    }
+    return aliases.get(text, text)
+
+
+def _dedupe_trends(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str]] = set()
+    deduped: list[dict[str, Any]] = []
+    for item in items:
+        title = str(item.get("title") or item.get("name") or "").strip().lower()
+        source = str(item.get("source_label") or item.get("platform") or item.get("source") or "").strip().lower()
+        key = (title, source)
+        if not title or key in seen:
+            continue
+        seen.add(key)
+        if "ai agents" in title and "linkedin" not in source and "news" not in source and "youtube" not in source and "reddit" not in source:
+            continue
+        if "prompt tools" in title and "linkedin" not in source and "news" not in source and "youtube" not in source and "reddit" not in source:
+            continue
+        if "ai video editing" in title and "linkedin" not in source and "news" not in source and "youtube" not in source and "reddit" not in source:
+            continue
+        deduped.append(item)
+    return deduped
+
+
+def _trend_matches_category(trend: dict[str, Any], category: str, topic: str = "") -> bool:
+    haystack = " ".join(
+        [
+            str(trend.get("title") or ""),
+            str(trend.get("name") or ""),
+            str(trend.get("description") or trend.get("summary") or ""),
+            str(trend.get("category") or ""),
+            str(trend.get("platform") or ""),
+            str(trend.get("source_label") or ""),
+            topic,
+        ]
+    ).lower()
+    mapping = {
+        "ai": ["ai", "llm", "openai", "gemini", "chatgpt", "agents", "automation"],
+        "technology": ["software", "cloud", "devops", "programming", "engineering", "technology"],
+        "machine learning": ["machine learning", "ml", "model training", "prediction", "nlp"],
+        "data science": ["data science", "analytics", "data", "visualization", "statistics"],
+        "software development": ["software", "coding", "programming", "engineering", "developer"],
+        "startups": ["startup", "founder", "funding", "seed", "series", "venture"],
+        "business": ["business", "strategy", "revenue", "market", "enterprise"],
+        "finance": ["finance", "bank", "fintech", "investment", "trading", "markets"],
+        "education": ["college", "university", "exam", "course", "learning", "student"],
+        "healthcare": ["health", "hospital", "medical", "clinical", "patient"],
+        "sports": ["cricket", "ipl", "football", "olympics", "sports"],
+        "entertainment": ["movie", "film", "tv", "music", "entertainment"],
+        "marketing": ["marketing", "content", "campaign", "brand", "seo", "social"],
+        "cyber security": ["security", "cyber", "threat", "vulnerability", "breach", "llm security"],
+    }
+    normalized = _normalize_trend_category(category)
+    terms = mapping.get(normalized, [normalized])
+    return any(term in haystack for term in terms)
+
+
+@router.get("/industry/company")
+def get_industry_company_endpoint():
+    init_db()
+    return {"success": True, "item": get_industry_company()}
+
+
+@router.get("/industry/trends")
+def get_industry_trends_endpoint():
+    init_db()
+    items = get_industry_trends()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.get("/industry/live-trends")
+def get_industry_live_trends_endpoint():
+    init_db()
+    items = get_industry_live_trends()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.get("/industry/company-intelligence")
+def get_industry_company_intelligence_endpoint():
+    init_db()
+    return {"success": True, "item": get_industry_company()}
+
+
+@router.get("/industry/company-signals")
+def get_industry_company_signals_endpoint():
+    init_db()
+    return industry_intelligence_service.get_company_signals()
+
+
+@router.get("/industry/linkedin-intelligence")
+def get_industry_linkedin_intelligence_endpoint():
+    init_db()
+    return industry_intelligence_service.get_linkedin_intelligence()
+
+
+@router.get("/industry/linkedin-posts")
+def get_industry_linkedin_posts_endpoint():
+    init_db()
+    return industry_intelligence_service.get_linkedin_posts()
+
+
+@router.get("/industry/linkedin-themes")
+def get_industry_linkedin_themes_endpoint():
+    init_db()
+    return industry_intelligence_service.get_linkedin_themes()
+
+
+@router.get("/industry/news-intelligence")
+def get_industry_news_intelligence_endpoint():
+    init_db()
+    return industry_intelligence_service.get_news_intelligence()
+
+
+@router.get("/industry/competitor-signals")
+def get_industry_competitor_signals_endpoint():
+    init_db()
+    return industry_intelligence_service.get_competitor_signals()
+
+
+@router.get("/industry/executive-insights")
+def get_industry_executive_insights_endpoint():
+    init_db()
+    return industry_intelligence_service.get_executive_insights()
+
+
+@router.get("/industry/rag-analysis")
+def get_industry_rag_analysis_endpoint(topic: str | None = None):
+    init_db()
+    return industry_intelligence_service.get_rag_analysis(topic=topic)
+
+
+@router.get("/industry/board-report")
+def get_industry_board_report_endpoint():
+    init_db()
+    return industry_intelligence_service.get_board_report()
+
+
+def _build_industry_pdf_response(request: Request, payload: dict[str, Any] | None = None) -> Response:
+    try:
+        init_db()
+        report_payload = payload if payload else industry_intelligence_service.build_industry_board_report_payload()
+        report_payload = report_payload or {}
+        pdf_bytes = report_service.build_industry_pdf(report_payload)
+        filename = "industry_board_report.pdf"
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to build industry PDF report")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {exc}") from exc
+
+
+@router.get("/industry/report/pdf")
+def get_industry_report_pdf_endpoint(request: Request):
+    return _build_industry_pdf_response(request)
+
+
+@router.post("/industry/report/pdf")
+def post_industry_report_pdf_endpoint(request: Request, payload: dict[str, Any] = Body(default_factory=dict)):
+    return _build_industry_pdf_response(request, payload)
+
+
+@router.post("/industry/refresh")
+def refresh_industry_endpoint():
+    try:
+        init_db()
+        snapshot = refresh_industry_live_data(force=True)
+        linkedin = snapshot.get("linkedin", {}) or {}
+        source_coverage = {
+            "company": "Giggso Website" if snapshot.get("company") else "Unavailable",
+            "linkedin": linkedin.get("source_label") or "Unavailable",
+            "news": "Google News RSS" if snapshot.get("news") else "Unavailable",
+            "competitors": "Web/Search Signals" if snapshot.get("competitor_signals") else "Unavailable",
+            "insights": "Gemini / Fallback" if snapshot.get("insights") else "Fallback",
+            "last_refreshed": snapshot.get("report", {}).get("generated_at").isoformat() if snapshot.get("report", {}).get("generated_at") else None,
         }
-        for trend in trends
-    ]
-    return {"items": trends_with_flags, "count": len(trends_with_flags)}
+        return {
+            "success": True,
+            "message": "Industry intelligence refreshed.",
+            "last_updated": snapshot["report"]["generated_at"].isoformat() if snapshot.get("report", {}).get("generated_at") else None,
+            "source_coverage": source_coverage,
+            "source_coverage_list": linkedin.get("source_coverage") or [],
+        }
+    except Exception as exc:
+        logger.exception("Industry refresh failed")
+        return {
+            "success": False,
+            "message": "Industry intelligence refresh completed with fallback data.",
+            "error": str(exc),
+            "source_coverage": {
+                "company": "Giggso Website",
+                "linkedin": "Fallback",
+                "news": "Google News RSS",
+                "competitors": "Web/Search Signals",
+                "insights": "Fallback",
+                "last_refreshed": None,
+            },
+            "source_coverage_list": [],
+        }
+
+
+@router.get("/industry/recommendations")
+def get_industry_recommendations_endpoint():
+    init_db()
+    items = get_industry_recommendations()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.get("/industry/competitor-activity")
+def get_industry_competitor_activity_endpoint():
+    init_db()
+    items = get_industry_competitor_activity()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.get("/industry/keywords")
+def get_industry_keywords_endpoint():
+    init_db()
+    items = get_industry_keywords()
+    grouped: dict[str, list[dict]] = {}
+    for item in items:
+        grouped.setdefault(item.get("keyword_group") or "Other", []).append(item)
+    return {"success": True, "items": items, "groups": grouped, "count": len(items)}
+
+
+@router.get("/industry/report")
+def get_industry_report_endpoint():
+    init_db()
+    report = get_industry_report()
+    return {"success": True, "item": report}
+
+
+@router.get("/industry/competitors")
+def get_industry_competitors_endpoint():
+    init_db()
+    items = get_industry_competitors()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.get("/industry/insights")
+def get_industry_insights_endpoint():
+    init_db()
+    items = get_industry_insights()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.get("/industry/opportunities")
+def get_industry_opportunities_endpoint():
+    init_db()
+    items = get_industry_opportunities()
+    return {"success": True, "items": items, "count": len(items)}
+
+
+@router.post("/industry/product-impact")
+def analyze_product_impact_endpoint(payload: ProductImpactRequest):
+    init_db()
+    return industry_intelligence_service.analyze_product_impact(payload.feature_name, payload.feature_description)
+
+
+@router.get("/industry/search")
+def search_industry_endpoint(q: str = ""):
+    init_db()
+    query = (q or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="q is required")
+    return industry_intelligence_service.search_intelligence(query)
+
+
+@router.get("/industry/compare")
+def compare_industry_endpoint(q1: str = "", q2: str = ""):
+    init_db()
+    left = (q1 or "").strip()
+    right = (q2 or "").strip()
+    if not left or not right:
+        raise HTTPException(status_code=400, detail="q1 and q2 are required")
+    return industry_intelligence_service.compare_intelligence(left, right)
+
+
+@router.get("/industry/validation-report")
+def get_industry_validation_report_endpoint():
+    init_db()
+    return industry_intelligence_service.get_validation_report()
+
+
+@router.get("/industry/history")
+def get_industry_history_endpoint(keyword: str = "", range: str = "7d"):
+    init_db()
+    query = (keyword or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="keyword is required")
+    history = get_trend_history(query, range_label=range)
+    if not history:
+        return {
+            "success": False,
+            "keyword": query,
+            "current_score": 0,
+            "previous_score": 0,
+            "delta": 0,
+            "direction": "stable",
+            "movement_label": "Stable",
+            "history": [],
+            "range": str(range or "7d").lower(),
+        }
+    return {"success": True, **history}
+
+
+@router.get("/industry/history/leaderboard")
+def get_industry_history_leaderboard_endpoint(range: str = "7d"):
+    init_db()
+    return {"success": True, **get_trend_history_leaderboard(range_label=range)}
+
+
+@dev_router.get("/industry/search")
+def dev_search_industry_endpoint(q: str = ""):
+    _ensure_dev_validation_enabled()
+    query = (q or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="q is required")
+    return industry_intelligence_service.search_intelligence(query)
+
+
+@dev_router.get("/industry/compare")
+def dev_compare_industry_endpoint(q1: str = "", q2: str = ""):
+    _ensure_dev_validation_enabled()
+    left = (q1 or "").strip()
+    right = (q2 or "").strip()
+    if not left or not right:
+        raise HTTPException(status_code=400, detail="q1 and q2 are required")
+    return industry_intelligence_service.compare_intelligence(left, right)
+
+
+@dev_router.post("/industry/product-impact")
+def dev_analyze_product_impact_endpoint(payload: ProductImpactRequest):
+    _ensure_dev_validation_enabled()
+    return industry_intelligence_service.analyze_product_impact(payload.feature_name, payload.feature_description)
+
+
+@dev_router.get("/industry/validation-report")
+def dev_validation_report_endpoint():
+    _ensure_dev_validation_enabled()
+    return industry_intelligence_service.get_validation_report()
+
+
+@dev_router.get("/industry/history")
+def dev_get_industry_history_endpoint(keyword: str = "", range: str = "7d"):
+    _ensure_dev_validation_enabled()
+    query = (keyword or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="keyword is required")
+    history = get_trend_history(query, range_label=range)
+    if not history:
+        return {
+            "success": False,
+            "keyword": query,
+            "current_score": 0,
+            "previous_score": 0,
+            "delta": 0,
+            "direction": "stable",
+            "movement_label": "Stable",
+            "history": [],
+            "range": str(range or "7d").lower(),
+        }
+    return {"success": True, **history}
+
+
+@dev_router.get("/industry/history/leaderboard")
+def dev_get_industry_history_leaderboard_endpoint(range: str = "7d"):
+    _ensure_dev_validation_enabled()
+    return {"success": True, **get_trend_history_leaderboard(range_label=range)}
+
+
+@dev_router.get("/industry/report/pdf")
+def dev_get_industry_report_pdf_endpoint(request: Request):
+    _ensure_dev_validation_enabled()
+    return _build_industry_pdf_response(request)
+
+
+@dev_router.post("/industry/report/pdf")
+def dev_post_industry_report_pdf_endpoint(request: Request, payload: dict[str, Any] = Body(default_factory=dict)):
+    _ensure_dev_validation_enabled()
+    return _build_industry_pdf_response(request, payload)
 
 
 @router.post("/analyze")
@@ -322,36 +798,89 @@ def get_current_trends(region: str = "US", limit: int = 12):
         raise HTTPException(status_code=500, detail=f"Unexpected error: {exc}") from exc
 
 
-@router.post("/fetch-trends")
-async def fetch_trends(payload: TrendFetchRequest):
+def _resolve_trend_fetch_query(payload: TrendFetchRequest) -> dict[str, Any]:
+    topic = (payload.topic or payload.niche or payload.mode or "").strip()
+    platform = (payload.platform or "all").strip()
+    region = (payload.region or "India").strip()
+    return {
+        "topic": topic,
+        "platform": platform,
+        "region": region,
+        "limit": max(1, min(int(payload.limit or 12), 24)),
+    }
+
+
+async def _fetch_trends_impl(payload: TrendFetchRequest):
     try:
+        fetch_args = _resolve_trend_fetch_query(payload)
         logger.info(
-            "Fetching regional trends for region=%s niche=%s platform=%s limit=%s",
-            payload.region,
-            payload.niche,
-            payload.platform,
-            payload.limit,
+            "Fetching trend radar data for region=%s topic=%s platform=%s limit=%s",
+            fetch_args["region"],
+            fetch_args["topic"],
+            fetch_args["platform"],
+            fetch_args["limit"],
         )
         result = insight_tools.fetch_current_trends(
-            region=payload.region or "India",
-            limit=max(1, min(int(payload.limit or 12), 24)),
+            region=fetch_args["region"],
+            limit=fetch_args["limit"],
+            topic=fetch_args["topic"] or None,
             niche=payload.niche,
-            platform=payload.platform,
+            platform=fetch_args["platform"],
+            mode=payload.mode,
         )
         init_db()
         for item in result.get("items", []):
-            item["region"] = payload.region or "India"
+            item["region"] = fetch_args["region"]
+            if fetch_args["topic"]:
+                item["topic"] = fetch_args["topic"]
         save_trends(result.get("items", []))
         return {
             **result,
             "success": True,
-            "selected_region": payload.region or "India",
+            "selected_region": fetch_args["region"],
+            "selected_topic": fetch_args["topic"],
             "selected_niche": payload.niche or "",
-            "selected_platform": payload.platform or "",
+            "selected_platform": fetch_args["platform"],
         }
     except Exception as exc:
-        logger.exception("Failed to fetch regional trends")
+        logger.exception("Failed to fetch trend radar data")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {exc}") from exc
+
+
+@router.get("/trends/fetch")
+async def fetch_trends_get(
+    region: str = "India",
+    topic: str | None = None,
+    niche: str | None = None,
+    platform: str | None = None,
+    mode: str | None = None,
+    limit: int = 12,
+):
+    payload = TrendFetchRequest(region=region, topic=topic, niche=niche, platform=platform, mode=mode, limit=limit)
+    return await _fetch_trends_impl(payload)
+
+
+@router.post("/trends/fetch")
+async def fetch_trends_post(payload: TrendFetchRequest):
+    return await _fetch_trends_impl(payload)
+
+
+@router.get("/fetch-trends")
+async def fetch_trends_legacy_get(
+    region: str = "India",
+    topic: str | None = None,
+    niche: str | None = None,
+    platform: str | None = None,
+    mode: str | None = None,
+    limit: int = 12,
+):
+    payload = TrendFetchRequest(region=region, topic=topic, niche=niche, platform=platform, mode=mode, limit=limit)
+    return await _fetch_trends_impl(payload)
+
+
+@router.post("/fetch-trends")
+async def fetch_trends_legacy_post(payload: TrendFetchRequest):
+    return await _fetch_trends_impl(payload)
 
 
 @router.get("/trends/{trend_id}")

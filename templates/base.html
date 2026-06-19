@@ -7,19 +7,20 @@
   <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-  <div class="page-shell{% if request.path == '/dashboard' %} page-shell--dashboard{% endif %}">
+  <div class="page-shell{% if request.path in ['/dashboard', '/trend-intelligence', '/industry-intelligence'] %} page-shell--dashboard{% endif %}">
     <header class="topbar">
       <a class="brand" href="/">TrendHunter AI</a>
       <nav class="nav">
         <a href="/">Home</a>
+        <a href="/dashboard">Trend Intelligence</a>
+        <a href="/industry-intelligence">Industry Intelligence</a>
+        <a href="/health">Health</a>
         {% if request.state.current_user %}
-        <a href="/dashboard">Dashboard</a>
         <a href="/logout">Logout</a>
         {% else %}
         <a href="/login">Login</a>
         <a href="/register">Register</a>
         {% endif %}
-        <a href="/health">Health</a>
       </nav>
     </header>
     <main>

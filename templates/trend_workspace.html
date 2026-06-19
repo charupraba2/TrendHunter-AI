@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-shell" id="dashboard-app" data-trends-api="/api/trends">
-  <nav class="dashboard-topnav glass-panel" aria-label="Primary dashboard navigation">
-    <button class="button dashboard-topnav__item dashboard-tab is-active" type="button" data-dashboard-tab="industry-intelligence" aria-selected="true">Industry Intelligence</button>
-    <button class="button dashboard-topnav__item dashboard-tab" type="button" data-dashboard-tab="competitor" aria-selected="false">Competitors</button>
-    <button class="button dashboard-topnav__item dashboard-tab" type="button" data-dashboard-tab="forecast" aria-selected="false">Forecast</button>
-  </nav>
+<section class="dashboard-shell dashboard-shell--workspace dashboard-shell--trend" id="dashboard-app" data-trends-api="/api/trends" data-workspace="trend" data-default-dashboard-tab="dashboard">
+  <div class="workspace-header glass-panel">
+    <div>
+      <p class="eyebrow">Trend Intelligence</p>
+      <h1>Creator Trend Intelligence Workspace</h1>
+      <p class="section-copy">Analyze trends, virality, forecasting, creator insights, market signals and opportunities.</p>
+    </div>
+    <div class="workspace-header__actions">
+      <a class="button secondary" href="/">Home</a>
+      <a class="button secondary" href="/industry-intelligence">Industry Intelligence</a>
+    </div>
+  </div>
   <div class="dashboard-stage app-shell" id="dashboard-stage">
     <aside class="dashboard-sidebar glass-panel">
       <div class="dashboard-sidebar__brand">
@@ -16,13 +22,11 @@
         </div>
       </div>
       <nav class="dashboard-sidebar__nav" aria-label="Dashboard navigation">
-        <button class="dashboard-sidebar__item dashboard-tab is-active" type="button" data-dashboard-tab="industry-intelligence" aria-selected="true">Industry Intelligence</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="product-impact" aria-selected="false">Product Impact</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="dashboard" aria-selected="false">Dashboard</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="intelligence" aria-selected="false">Trend Radar</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="analyze" aria-selected="false">Analyze</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="competitor" aria-selected="false">Competitors</button>
-        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="forecast" aria-selected="false">Forecast</button>
+        <button class="dashboard-sidebar__item dashboard-tab is-active" type="button" data-dashboard-tab="dashboard" aria-selected="true">📊 Dashboard</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="intelligence" aria-selected="false">📡 Trend Radar</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="analyze" aria-selected="false">🔍 Analyze</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="forecast" aria-selected="false">📈 Forecast</button>
+        <button class="dashboard-sidebar__item dashboard-tab" type="button" data-dashboard-tab="strategy" aria-selected="false">🤖 AI Strategy</button>
       </nav>
       <div class="dashboard-sidebar__mini">
         <span class="chip chip--live">Live</span>
@@ -32,7 +36,7 @@
     </aside>
 
     <div class="dashboard-center main-workspace">
-      <section class="dashboard-overview glass-panel page-section active" data-page-section="dashboard" data-tab-panel="dashboard">
+      <section class="dashboard-overview page-section active glass-panel" id="trend-dashboard" data-page-section="dashboard" data-tab-panel="dashboard">
         <div class="section-header dashboard-overview__header">
           <div>
             <p class="eyebrow">Dashboard</p>
@@ -58,7 +62,7 @@
         </article>
       </section>
 
-      <section class="dashboard-intelbar glass-panel page-section" data-page-section="dashboard" data-tab-panel="dashboard">
+      <section class="dashboard-intelbar page-section glass-panel" id="trend-radar" data-page-section="intelligence" data-tab-panel="intelligence">
         <div class="dashboard-intelbar__card">
           <div class="section-header section-header--compact">
             <div>
@@ -94,462 +98,7 @@
       </div>
     </section>
 
-    <section class="industry-intelligence glass-panel page-section" data-page-section="industry-intelligence" data-tab-panel="industry-intelligence">
-      <div class="section-header industry-intelligence__header">
-        <div>
-          <p class="eyebrow">Executive Dashboard</p>
-          <h2>Enterprise AI Market Intelligence</h2>
-        </div>
-        <p class="section-copy">Track AI companies, competitors, governance signals, market opportunities, and industry trends in real time.</p>
-      </div>
-
-      <div class="industry-commandbar glass-panel">
-        <div class="industry-commandbar__copy">
-          <span class="summary-label">Reference company</span>
-          <h3 id="industry-company-name">Giggso</h3>
-          <p id="industry-company-overview">Loading company intelligence...</p>
-        </div>
-        <div class="industry-commandbar__meta">
-          <span class="trend-badge trend-badge--mode" id="industry-company-location">Troy, Michigan</span>
-          <span class="trend-badge trend-badge--source" id="industry-company-size">51-200 employees</span>
-          <button class="button secondary" id="industry-refresh-btn" type="button">Refresh Industry Data</button>
-          <button class="button secondary" id="industry-report-pdf-btn" type="button" disabled>📄 Download PDF Report</button>
-        </div>
-      </div>
-
-      <div class="industry-source-strip glass-panel" id="industry-source-coverage-strip" aria-label="Industry intelligence source coverage">
-        <div class="industry-source-strip__item" data-source-key="company">
-          <span>Company</span>
-          <strong id="industry-source-company">Available</strong>
-        </div>
-        <div class="industry-source-strip__item" data-source-key="linkedin">
-          <span>LinkedIn</span>
-          <strong id="industry-source-linkedin">Unavailable</strong>
-        </div>
-        <div class="industry-source-strip__item" data-source-key="news">
-          <span>News</span>
-          <strong id="industry-source-news">Available</strong>
-        </div>
-        <div class="industry-source-strip__item" data-source-key="competitors">
-          <span>Competitors</span>
-          <strong id="industry-source-competitors">Available</strong>
-        </div>
-        <div class="industry-source-strip__item" data-source-key="insights">
-          <span>AI Insights</span>
-          <strong id="industry-source-insights">Fallback</strong>
-        </div>
-        <div class="industry-source-strip__item industry-source-strip__item--last">
-          <span>Last Refreshed</span>
-          <strong id="industry-source-last-refreshed">Never</strong>
-        </div>
-      </div>
-
-      <div class="industry-search glass-panel">
-        <div class="industry-search__box" id="industrySearchBox">
-          <label class="sr-only" for="industrySearchInput">Search industry intelligence</label>
-          <input
-            class="industry-search__input"
-            id="industrySearchInput"
-            type="text"
-            placeholder="Search AI companies, models, technologies, trends..."
-            autocomplete="off"
-          />
-          <button class="button secondary industry-search__button" id="industrySearchBtn" type="button">Search</button>
-        </div>
-        <article class="industry-search-result glass-panel" id="industry-search-result-card" aria-live="polite" hidden>
-          <div class="industry-card__header industry-search-result__header">
-            <div>
-              <span class="industry-card__eyebrow">Search Result</span>
-              <h3 id="industry-search-query">Search for an AI company or topic</h3>
-            </div>
-            <div class="industry-search-result__metrics">
-              <span class="trend-badge trend-badge--mode" id="industry-search-trend-score"></span>
-              <span class="trend-badge trend-badge--source" id="industry-search-momentum"></span>
-              <span class="trend-badge trend-badge--fallback" id="industry-search-confidence"></span>
-            </div>
-          </div>
-          <div class="industry-search-result__grid">
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Growth score</span>
-              <strong id="industry-search-growth-score"></strong>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Evidence</span>
-              <div class="industry-search-result__split" id="industry-search-evidence"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Executive insight</span>
-              <p id="industry-search-summary"></p>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Recommended action</span>
-              <p id="industry-search-recommendation"></p>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Search History</span>
-              <div class="industry-trend-history" id="industry-search-history">
-                <div class="industry-trend-history__stats">
-                  <span>Current: <strong id="industry-search-history-current">-</strong></span>
-                  <span>Previous: <strong id="industry-search-history-previous">-</strong></span>
-                  <span>Change: <strong id="industry-search-history-delta">-</strong></span>
-                  <span>Direction: <strong id="industry-search-history-direction">-</strong></span>
-                </div>
-                <div class="industry-trend-history__strip" id="industry-search-history-strip" aria-label="Search history strip"></div>
-              </div>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Related Keywords</span>
-              <div class="industry-chip-list" id="industry-search-keywords"></div>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Recent News</span>
-              <div class="industry-report-list" id="industry-search-news"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Competitor Mentions</span>
-              <div class="industry-report-list" id="industry-search-competitors"></div>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <div class="industry-compare glass-panel" id="industryCompareBox">
-        <div class="industry-compare__header">
-          <div>
-            <span class="summary-label">Competitor Comparison</span>
-            <h3>Compare domain signals side by side</h3>
-          </div>
-          <div class="industry-compare__actions">
-            <button class="industry-compare__example" type="button" data-industry-compare-q1="OpenAI" data-industry-compare-q2="Anthropic">OpenAI vs Anthropic</button>
-            <button class="industry-compare__example" type="button" data-industry-compare-q1="Claude" data-industry-compare-q2="ChatGPT">Claude vs ChatGPT</button>
-            <button class="industry-compare__example" type="button" data-industry-compare-q1="Giggso" data-industry-compare-q2="OpenAI">Giggso vs OpenAI</button>
-          </div>
-        </div>
-        <div class="industry-compare__box">
-          <label class="sr-only" for="industryCompareQ1">First signal</label>
-          <input class="industry-search__input" id="industryCompareQ1" type="text" placeholder="First company or topic" autocomplete="off" />
-          <label class="sr-only" for="industryCompareQ2">Second signal</label>
-          <input class="industry-search__input" id="industryCompareQ2" type="text" placeholder="Second company or topic" autocomplete="off" />
-          <button class="button secondary industry-search__button" id="industryCompareBtn" type="button">Compare</button>
-        </div>
-        <article class="industry-compare-result glass-panel" id="industry-compare-result-card" aria-live="polite" hidden>
-          <div class="industry-card__header industry-search-result__header">
-            <div>
-              <span class="industry-card__eyebrow">Comparison Result</span>
-              <h3 id="industry-compare-title">Comparison insights</h3>
-            </div>
-            <div class="industry-search-result__metrics">
-              <span class="trend-badge trend-badge--mode" id="industry-compare-trend-score"></span>
-              <span class="trend-badge trend-badge--source" id="industry-compare-momentum"></span>
-              <span class="trend-badge trend-badge--fallback" id="industry-compare-growth-score"></span>
-            </div>
-          </div>
-          <div class="industry-search-result__grid">
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Keyword overlap</span>
-              <div class="industry-chip-list" id="industry-compare-keywords"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Evidence</span>
-              <div class="industry-search-result__split" id="industry-compare-evidence"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Executive summary</span>
-              <p id="industry-compare-summary"></p>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Strengths</span>
-              <div class="industry-report-list" id="industry-compare-strengths"></div>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Weaknesses</span>
-              <div class="industry-report-list" id="industry-compare-weaknesses"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Recent News</span>
-              <div class="industry-report-list" id="industry-compare-news"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Competitive Gap Analysis</span>
-              <div class="industry-search-result__split">
-                <div>
-                  <span class="industry-summary-card__label" id="industry-compare-left-wins-label">Left wins</span>
-                  <div class="industry-report-list" id="industry-compare-left-wins"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label" id="industry-compare-right-wins-label">Right wins</span>
-                  <div class="industry-report-list" id="industry-compare-right-wins"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">Missing capabilities</span>
-                  <div class="industry-report-list" id="industry-compare-missing-capabilities"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">Market positioning gaps</span>
-                  <div class="industry-report-list" id="industry-compare-positioning-gaps"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">Enterprise readiness gaps</span>
-                  <div class="industry-report-list" id="industry-compare-readiness-gaps"></div>
-                </div>
-              </div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Strategic Recommendations</span>
-              <div class="industry-report-list" id="industry-compare-strategic-recommendations"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Executive Action Plan</span>
-              <div class="industry-search-result__split">
-                <div>
-                  <span class="industry-summary-card__label">Immediate Actions</span>
-                  <div class="industry-report-list" id="industry-compare-immediate-actions"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">Next Actions</span>
-                  <div class="industry-report-list" id="industry-compare-next-actions"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">Long-Term Actions</span>
-                  <div class="industry-report-list" id="industry-compare-long-term-actions"></div>
-                </div>
-              </div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">30 / 60 / 90 Day Roadmap</span>
-              <div class="industry-search-result__split">
-                <div>
-                  <span class="industry-summary-card__label">30 Days</span>
-                  <div class="industry-report-list" id="industry-compare-roadmap-30"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">60 Days</span>
-                  <div class="industry-report-list" id="industry-compare-roadmap-60"></div>
-                </div>
-                <div>
-                  <span class="industry-summary-card__label">90 Days</span>
-                  <div class="industry-report-list" id="industry-compare-roadmap-90"></div>
-                </div>
-              </div>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Business Impact Forecast</span>
-              <div class="industry-report-list" id="industry-compare-forecast"></div>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Executive Readiness Score</span>
-              <div class="industry-report-list" id="industry-compare-readiness"></div>
-            </div>
-            <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Board Recommendations</span>
-              <div class="industry-report-list" id="industry-compare-board-recommendations"></div>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <div class="industry-product-impact page-section glass-panel" id="industry-product-impact" data-page-section="product-impact" data-tab-panel="product-impact" hidden>
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Product Impact Intelligence</p>
-            <h3>Executive launch readiness for proposed features</h3>
-          </div>
-          <p class="section-copy">Estimate launch priority, enterprise fit, competitive advantage, and rollout readiness before building a feature.</p>
-        </div>
-        <div class="industry-product-impact__box">
-          <label class="sr-only" for="industryProductImpactName">Feature name</label>
-          <input
-            class="industry-search__input"
-            id="industryProductImpactName"
-            type="text"
-            placeholder="Feature name"
-            autocomplete="off"
-          />
-          <label class="sr-only" for="industryProductImpactDescription">Feature description</label>
-          <textarea
-            class="industry-search__input industry-product-impact__textarea"
-            id="industryProductImpactDescription"
-            placeholder="Feature description"
-            rows="3"
-          ></textarea>
-          <button class="button secondary industry-search__button industry-product-impact__button" id="industryProductImpactBtn" type="button">Analyze Impact</button>
-        </div>
-        <article class="industry-search-result glass-panel" id="industry-product-impact-result-card" aria-live="polite" hidden>
-          <div id="industry-product-impact-result-body"></div>
-        </article>
-      </div>
-
-      <div class="industry-summary-grid">
-        <article class="industry-summary-card glass-panel">
-          <span class="industry-summary-card__label">Company overview</span>
-          <p id="industry-company-overview-card">Loading company overview...</p>
-        </article>
-        <article class="industry-summary-card glass-panel">
-          <span class="industry-summary-card__label">Core focus areas</span>
-          <div class="industry-chip-list" id="industry-company-focus"></div>
-        </article>
-        <article class="industry-summary-card glass-panel">
-          <span class="industry-summary-card__label">Industry positioning</span>
-          <p id="industry-company-positioning">Loading positioning...</p>
-        </article>
-        <article class="industry-summary-card glass-panel">
-          <span class="industry-summary-card__label">Strategic themes</span>
-          <div class="industry-chip-list" id="industry-company-themes"></div>
-        </article>
-      </div>
-
-      <div class="industry-kpi-grid">
-        <article class="industry-kpi-card glass-panel">
-          <span>Industry trends</span>
-          <strong id="industry-trend-count">0</strong>
-          <p>Governance, security, and enterprise AI themes</p>
-        </article>
-        <article class="industry-kpi-card glass-panel">
-          <span>Competitors tracked</span>
-          <strong id="industry-competitor-count">0</strong>
-          <p>OpenAI, Anthropic, DeepMind, Microsoft AI, Perplexity, Cohere</p>
-        </article>
-        <article class="industry-kpi-card glass-panel">
-          <span>Executive insights</span>
-          <strong id="industry-insight-count">0</strong>
-          <p>Actionable executive-style signals</p>
-        </article>
-        <article class="industry-kpi-card glass-panel">
-          <span>Market opportunities</span>
-          <strong id="industry-opportunity-count">0</strong>
-          <p>Prioritized opportunity cards</p>
-        </article>
-      </div>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Leaderboards</p>
-            <h3>Top AI models, companies, and concepts</h3>
-          </div>
-        </div>
-        <div class="industry-leaderboard-grid">
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Top AI Models</span>
-            <div class="industry-report-list" id="industry-leaderboard-models"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Top AI Companies</span>
-            <div class="industry-report-list" id="industry-leaderboard-companies"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Top AI Concepts</span>
-            <div class="industry-report-list" id="industry-leaderboard-concepts"></div>
-          </article>
-        </div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Industry Trends</p>
-            <h3>Priority themes moving enterprise AI adoption</h3>
-          </div>
-        </div>
-        <div class="industry-card-grid" id="industry-trends-grid"></div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Competitor Intelligence</p>
-            <h3>Reference market activity and momentum</h3>
-          </div>
-        </div>
-        <div class="industry-card-grid" id="industry-competitors-grid"></div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">AI Insight Engine</p>
-            <h3>Executive-style signals and recommended actions</h3>
-          </div>
-        </div>
-        <div class="industry-card-grid industry-card-grid--insights" id="industry-insights-grid"></div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Market Opportunities</p>
-            <h3>Commercial opportunities emerging from the trend set</h3>
-          </div>
-        </div>
-        <div class="industry-card-grid" id="industry-opportunities-grid"></div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Executive Recommendations</p>
-            <h3>Recommended actions for Giggso leadership</h3>
-          </div>
-        </div>
-        <div class="industry-card-grid industry-card-grid--insights" id="industry-recommendations-grid"></div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Keyword Intelligence</p>
-            <h3>Top governance, growth, and adoption keywords</h3>
-          </div>
-        </div>
-        <div class="industry-keyword-grid">
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Top AI Governance Keywords</span>
-            <div class="industry-chip-list" id="industry-keywords-governance"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Fastest Growing Keywords</span>
-            <div class="industry-chip-list" id="industry-keywords-growing"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Enterprise Adoption Keywords</span>
-            <div class="industry-chip-list" id="industry-keywords-adoption"></div>
-          </article>
-        </div>
-      </section>
-
-      <section class="industry-section">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">Weekly Intelligence Report</p>
-            <h3>Executive report cards for leadership reviews</h3>
-          </div>
-        </div>
-        <div class="industry-report-grid">
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Top Trends</span>
-            <div id="industry-report-top-trends"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Competitor Highlights</span>
-            <div id="industry-report-competitors"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Strategic Risks</span>
-            <div id="industry-report-risks"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Strategic Opportunities</span>
-            <div id="industry-report-opportunities"></div>
-          </article>
-          <article class="industry-summary-card glass-panel industry-report-grid__wide">
-            <span class="industry-summary-card__label">Executive Recommendations</span>
-            <div id="industry-report-recommendations"></div>
-          </article>
-        </div>
-      </section>
-    </section>
-
-  <section class="creator-lab glass-panel page-section" id="creator-lab" data-page-section="analyze" data-tab-panel="analyze">
+  <section class="creator-lab page-section glass-panel" id="trend-analyze" data-page-section="analyze" data-tab-panel="analyze">
     <div class="section-header creator-lab__header">
       <div>
         <p class="eyebrow">Creator Intelligence Lab</p>
@@ -653,7 +202,7 @@
     </div>
   </section>
 
-  <section class="linkedin-studio glass-panel page-section" id="linkedin-studio" data-page-section="analyze" data-tab-panel="analyze">
+  <section class="linkedin-studio page-section glass-panel " id="linkedin-studio" data-page-section="analyze" data-tab-panel="analyze">
     <div class="section-header linkedin-studio__header">
       <div>
         <p class="eyebrow">LinkedIn Studio</p>
@@ -690,7 +239,7 @@
     </div>
   </section>
 
-  <section class="performance-lab glass-panel page-section" id="performance-lab" data-page-section="forecast" data-tab-panel="forecast">
+  <section class="performance-lab page-section glass-panel " id="trend-forecast" data-page-section="forecast" data-tab-panel="forecast">
     <div class="section-header performance-lab__header">
       <div>
         <p class="eyebrow">Forecast</p>
@@ -942,7 +491,7 @@
     </div>
   </section>
 
-  <section class="strategy-panel glass-panel page-section" id="strategy-panel" data-page-section="competitor" data-tab-panel="competitor">
+  <section class="strategy-panel page-section glass-panel " id="trend-strategy" data-page-section="strategy" data-tab-panel="strategy">
     <div class="section-header strategy-panel__header">
       <div>
         <p class="eyebrow">AI Strategy Panel</p>
@@ -967,7 +516,7 @@
     </div>
   </section>
 
-  <section class="platform-intelligence glass-panel page-section" id="platform-intelligence" data-page-section="competitor" data-tab-panel="competitor">
+  <section class="platform-intelligence page-section glass-panel " id="platform-intelligence" data-page-section="strategy" data-tab-panel="strategy">
     <div class="section-header platform-intelligence__header">
       <div>
         <p class="eyebrow">Platform Intelligence</p>
@@ -1030,7 +579,7 @@
     </div>
   </section>
 
-  <section class="viral-analytics glass-panel page-section" data-page-section="analyze" data-tab-panel="analyze">
+  <section class="viral-analytics page-section glass-panel " data-page-section="analyze" data-tab-panel="analyze">
     <div class="section-header viral-analytics__header">
       <div>
         <p class="eyebrow">Viral Score Breakdown</p>
@@ -1129,7 +678,7 @@
     </article>
   </section>
 
-  <section class="trend-snapshot glass-panel page-section" data-page-section="analyze" data-tab-panel="analyze">
+  <section class="trend-snapshot page-section glass-panel " data-page-section="intelligence" data-tab-panel="intelligence">
     <div class="section-header trend-snapshot__header">
       <div>
         <p class="eyebrow">Trend Snapshot</p>
@@ -1138,16 +687,6 @@
       <p class="section-copy">Pulls live RSS data from Reddit, Google Trends, and news feeds, then compares it against your draft content.</p>
     </div>
     <div class="trend-snapshot__controls">
-      <label class="control-group trend-snapshot__control">
-        <span>Category</span>
-        <select id="trendRegion">
-          <option value="Global">Global</option>
-          <option value="India" selected>India</option>
-          <option value="Tamil Nadu">Tamil Nadu</option>
-          <option value="Chennai">Chennai</option>
-          <option value="Trichy">Trichy</option>
-        </select>
-      </label>
       <p class="trend-snapshot__summary" id="trendRegionSummary">Region: India</p>
     </div>
     <details class="dashboard-collapsible trend-snapshot__collapsible">
@@ -1178,7 +717,7 @@
     </details>
   </section>
 
-  <section class="competitor-lab glass-panel page-section" data-page-section="competitor" data-tab-panel="competitor">
+  <section class="competitor-lab page-section glass-panel " data-page-section="strategy" data-tab-panel="strategy">
     <div class="section-header competitor-lab__header">
       <div>
         <p class="eyebrow">Competitor Analysis</p>
@@ -1228,68 +767,56 @@
   <div class="dashboard-toolbar glass-panel page-section" data-page-section="intelligence" data-tab-panel="intelligence">
     <div class="toolbar-grid">
       <label class="control-group">
-        <span>Search</span>
-        <input id="trend-search" type="search" placeholder="Search trends by title or keyword" />
+        <span>Topic</span>
+        <input id="trend-topic" type="text" autocomplete="off" placeholder="Enter topic or keyword" />
+      </label>
+      <label class="control-group">
+        <span>Region</span>
+        <select id="trendRegion">
+          <option value="Global">Global</option>
+          <option value="India" selected>India</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Chennai">Chennai</option>
+          <option value="Trichy">Trichy</option>
+        </select>
       </label>
       <label class="control-group">
         <span>Platform</span>
         <select id="platform-filter">
           <option value="all">All</option>
-          <option value="reddit">Reddit</option>
-          <option value="google_trends">Google Trends</option>
           <option value="news">News</option>
           <option value="youtube">YouTube</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="blog">Blog</option>
         </select>
       </label>
       <label class="control-group">
         <span>Category</span>
         <select id="trend-mode">
-          <option value="Global" selected>Global</option>
-          <option value="India">India</option>
-          <option value="Tamil Nadu">Tamil Nadu</option>
-          <option value="Chennai">Chennai</option>
-          <option value="AI &amp; ML">AI &amp; ML</option>
-          <option value="Technology">Technology</option>
-          <option value="Business">Business</option>
-          <option value="Finance">Finance</option>
-          <option value="Education">Education</option>
-          <option value="Entertainment">Entertainment</option>
-          <option value="Sports">Sports</option>
-          <option value="Politics">Politics</option>
-        </select>
-      </label>
-      <label class="control-group">
-        <span>Virality</span>
-        <select id="virality-filter">
-          <option value="all">All</option>
-          <option value="High Viral">High Viral</option>
-          <option value="Trending">Trending</option>
-          <option value="Average">Average</option>
-          <option value="Low Reach">Low Reach</option>
-        </select>
-      </label>
-      <label class="control-group">
-        <span>Sentiment</span>
-        <select id="sentiment-filter">
-          <option value="all">All</option>
-          <option value="Positive">Positive</option>
-          <option value="Neutral">Neutral</option>
-          <option value="Negative">Negative</option>
-        </select>
-      </label>
-      <label class="control-group">
-        <span>Sort By</span>
-        <select id="sort-filter">
-          <option value="latest">Latest</option>
-          <option value="virality">Highest Virality Score</option>
-          <option value="upvotes">Most Upvotes</option>
-          <option value="comments">Most Comments</option>
+          <option value="ai" selected>AI</option>
+          <option value="technology">Technology</option>
+          <option value="machine learning">Machine Learning</option>
+          <option value="data science">Data Science</option>
+          <option value="software development">Software Development</option>
+          <option value="startups">Startups</option>
+          <option value="business">Business</option>
+          <option value="finance">Finance</option>
+          <option value="education">Education</option>
+          <option value="healthcare">Healthcare</option>
+          <option value="sports">Sports</option>
+          <option value="entertainment">Entertainment</option>
+          <option value="marketing">Marketing</option>
+          <option value="cyber security">Cyber Security</option>
         </select>
       </label>
     </div>
+    <div class="creator-form__actions">
+      <button class="button primary button--glow" id="fetch-topic-trends-btn" type="button">Fetch Topic Trends</button>
+      <button class="button secondary" id="refresh-trend-radar-btn" type="button">Refresh Current Trends</button>
+    </div>
   </div>
 
-  <div class="dashboard-status page-section" id="dashboard-status" aria-live="polite" data-page-section="intelligence" data-tab-panel="intelligence">
+  <div class="dashboard-status page-section" id="dashboard-status" data-page-section="intelligence" data-tab-panel="intelligence" aria-live="polite">
     <span class="dashboard-status__text">Loading stored trends...</span>
     <span class="dashboard-status__loader" id="dashboard-loader" aria-hidden="true">
       <span></span>
@@ -1298,7 +825,7 @@
     </span>
   </div>
 
-      <section class="trend-board page-section" data-page-section="intelligence" data-tab-panel="intelligence">
+      <section class="trend-board page-section " data-page-section="intelligence" data-tab-panel="intelligence">
         <div class="trend-board__header">
           <div>
             <p class="eyebrow">Trend Radar</p>
@@ -1316,7 +843,7 @@
         <div class="trend-grid" id="trend-grid"></div>
       </section>
 
-      <section class="assistant-workspace glass-panel page-section" id="assistantSection" data-page-section="assistant">
+      <section class="assistant-workspace page-section glass-panel " id="assistantSection" data-page-section="assistant" data-tab-panel="assistant">
         <div class="section-header">
           <div>
             <p class="eyebrow">AI Assistant</p>
@@ -1336,7 +863,7 @@
         </div>
       </section>
 
-      <section class="settings-workspace glass-panel page-section" id="settingsSection" data-page-section="settings">
+      <section class="settings-workspace page-section glass-panel " id="settingsSection" data-page-section="settings" data-tab-panel="settings">
         <div class="section-header">
           <div>
             <p class="eyebrow">Settings</p>
@@ -1444,5 +971,6 @@
 
 <div class="toast" id="toast" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
+
 
 
