@@ -245,6 +245,9 @@ class IndustryTrend(Base):
     recommended_action = Column(String, nullable=False)
     momentum_score = Column(Float, nullable=False, default=0.0)
     signal_strength = Column(String, nullable=True)
+    scoring_method = Column(String, nullable=False, default="ML/analytics-based")
+    llm_used_for_score = Column(Boolean, nullable=False, default=False)
+    score_features = Column(JSON, nullable=False, default=dict)
     source_notes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -300,6 +303,9 @@ class IndustryOpportunity(Base):
     evidence_sources = Column(JSON, nullable=False, default=list)
     supporting_evidence = Column(JSON, nullable=False, default=list)
     signal_inputs = Column(JSON, nullable=False, default=dict)
+    scoring_method = Column(String, nullable=False, default="ML/analytics-based")
+    llm_used_for_score = Column(Boolean, nullable=False, default=False)
+    score_features = Column(JSON, nullable=False, default=dict)
     source_notes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -317,6 +323,9 @@ class IndustryLiveTrend(Base):
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     executive_summary = Column(String, nullable=False)
     signal_strength = Column(String, nullable=True)
+    scoring_method = Column(String, nullable=False, default="ML/analytics-based")
+    llm_used_for_score = Column(Boolean, nullable=False, default=False)
+    score_features = Column(JSON, nullable=False, default=dict)
     source_notes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -333,6 +342,9 @@ class IndustryKeyword(Base):
     source_count = Column(Integer, nullable=False, default=0)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     executive_summary = Column(String, nullable=False)
+    scoring_method = Column(String, nullable=False, default="ML/analytics-based")
+    llm_used_for_score = Column(Boolean, nullable=False, default=False)
+    score_features = Column(JSON, nullable=False, default=dict)
     source_notes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -347,6 +359,21 @@ class IndustryCompetitorActivity(Base):
     activity_summary = Column(String, nullable=False)
     momentum_score = Column(Float, nullable=False, default=0.0)
     strategic_position = Column(String, nullable=False)
+    threat_score = Column(Float, nullable=False, default=0.0)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    evidence_count = Column(Integer, nullable=False, default=0)
+    source_count = Column(Integer, nullable=False, default=0)
+    source_names = Column(JSON, nullable=False, default=list)
+    source_timestamps = Column(JSON, nullable=False, default=list)
+    recent_signals = Column(JSON, nullable=False, default=list)
+    strengths = Column(JSON, nullable=False, default=list)
+    weaknesses = Column(JSON, nullable=False, default=list)
+    strategic_recommendations = Column(JSON, nullable=False, default=list)
+    gap_analysis = Column(JSON, nullable=False, default=dict)
+    score_reason = Column(String, nullable=False, default="")
+    scoring_method = Column(String, nullable=False, default="ML/analytics-based")
+    llm_used_for_score = Column(Boolean, nullable=False, default=False)
+    score_features = Column(JSON, nullable=False, default=dict)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     source_notes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -362,6 +389,9 @@ class IndustryRecommendation(Base):
     impact = Column(String, nullable=False)
     recommended_action = Column(String, nullable=False)
     confidence_score = Column(Float, nullable=False, default=0.0)
+    scoring_method = Column(String, nullable=False, default="ML/analytics-based")
+    llm_used_for_score = Column(Boolean, nullable=False, default=False)
+    score_features = Column(JSON, nullable=False, default=dict)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     source_notes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -688,6 +718,21 @@ def _ensure_industry_company_columns() -> None:
 def _ensure_industry_live_columns() -> None:
     inspector = inspect(engine)
     table_columns = {
+        "industry_trends": {
+            "trend_name": "VARCHAR",
+            "category": "VARCHAR",
+            "summary": "VARCHAR",
+            "business_impact": "VARCHAR",
+            "recommended_action": "VARCHAR",
+            "momentum_score": "FLOAT",
+            "signal_strength": "VARCHAR",
+            "scoring_method": "VARCHAR",
+            "llm_used_for_score": "BOOLEAN",
+            "score_features": "JSON",
+            "source_notes": "JSON",
+            "created_at": "DATETIME",
+            "updated_at": "DATETIME",
+        },
         "industry_live_trends": {
             "trend_name": "VARCHAR",
             "category": "VARCHAR",
@@ -697,6 +742,9 @@ def _ensure_industry_live_columns() -> None:
             "last_updated": "DATETIME",
             "executive_summary": "VARCHAR",
             "signal_strength": "VARCHAR",
+            "scoring_method": "VARCHAR",
+            "llm_used_for_score": "BOOLEAN",
+            "score_features": "JSON",
             "source_notes": "JSON",
             "created_at": "DATETIME",
             "updated_at": "DATETIME",
@@ -709,6 +757,9 @@ def _ensure_industry_live_columns() -> None:
             "source_count": "INTEGER",
             "last_updated": "DATETIME",
             "executive_summary": "VARCHAR",
+            "scoring_method": "VARCHAR",
+            "llm_used_for_score": "BOOLEAN",
+            "score_features": "JSON",
             "source_notes": "JSON",
             "created_at": "DATETIME",
             "updated_at": "DATETIME",
@@ -719,6 +770,21 @@ def _ensure_industry_live_columns() -> None:
             "activity_summary": "VARCHAR",
             "momentum_score": "FLOAT",
             "strategic_position": "VARCHAR",
+            "threat_score": "FLOAT",
+            "confidence_score": "FLOAT",
+            "evidence_count": "INTEGER",
+            "source_count": "INTEGER",
+            "source_names": "JSON",
+            "source_timestamps": "JSON",
+            "recent_signals": "JSON",
+            "strengths": "JSON",
+            "weaknesses": "JSON",
+            "strategic_recommendations": "JSON",
+            "gap_analysis": "JSON",
+            "score_reason": "VARCHAR",
+            "scoring_method": "VARCHAR",
+            "llm_used_for_score": "BOOLEAN",
+            "score_features": "JSON",
             "last_updated": "DATETIME",
             "source_notes": "JSON",
             "created_at": "DATETIME",
@@ -730,6 +796,9 @@ def _ensure_industry_live_columns() -> None:
             "impact": "VARCHAR",
             "recommended_action": "VARCHAR",
             "confidence_score": "FLOAT",
+            "scoring_method": "VARCHAR",
+            "llm_used_for_score": "BOOLEAN",
+            "score_features": "JSON",
             "last_updated": "DATETIME",
             "source_notes": "JSON",
             "created_at": "DATETIME",
@@ -765,6 +834,9 @@ def _ensure_industry_live_columns() -> None:
             "evidence_sources": "JSON",
             "supporting_evidence": "JSON",
             "signal_inputs": "JSON",
+            "scoring_method": "VARCHAR",
+            "llm_used_for_score": "BOOLEAN",
+            "score_features": "JSON",
             "source_notes": "JSON",
             "created_at": "DATETIME",
             "updated_at": "DATETIME",
@@ -1801,6 +1873,9 @@ def _industry_live_trend_to_dict(row: IndustryLiveTrend | None) -> dict | None:
         "last_updated": row.last_updated.isoformat() if row.last_updated else None,
         "executive_summary": row.executive_summary,
         "signal_strength": row.signal_strength,
+        "scoring_method": row.scoring_method,
+        "llm_used_for_score": bool(row.llm_used_for_score),
+        "score_features": row.score_features or {},
         "source_notes": row.source_notes or [],
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
@@ -1819,6 +1894,9 @@ def _industry_keyword_to_dict(row: IndustryKeyword | None) -> dict | None:
         "source_count": row.source_count,
         "last_updated": row.last_updated.isoformat() if row.last_updated else None,
         "executive_summary": row.executive_summary,
+        "scoring_method": row.scoring_method,
+        "llm_used_for_score": bool(row.llm_used_for_score),
+        "score_features": row.score_features or {},
         "source_notes": row.source_notes or [],
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
@@ -1835,6 +1913,21 @@ def _industry_competitor_activity_to_dict(row: IndustryCompetitorActivity | None
         "activity_summary": row.activity_summary,
         "momentum_score": row.momentum_score,
         "strategic_position": row.strategic_position,
+        "threat_score": row.threat_score,
+        "confidence_score": row.confidence_score,
+        "evidence_count": row.evidence_count,
+        "source_count": row.source_count,
+        "source_names": row.source_names or [],
+        "source_timestamps": row.source_timestamps or [],
+        "recent_signals": row.recent_signals or [],
+        "strengths": row.strengths or [],
+        "weaknesses": row.weaknesses or [],
+        "strategic_recommendations": row.strategic_recommendations or [],
+        "gap_analysis": row.gap_analysis or {},
+        "score_reason": row.score_reason,
+        "scoring_method": row.scoring_method,
+        "llm_used_for_score": bool(row.llm_used_for_score),
+        "score_features": row.score_features or {},
         "last_updated": row.last_updated.isoformat() if row.last_updated else None,
         "source_notes": row.source_notes or [],
         "created_at": row.created_at.isoformat() if row.created_at else None,
@@ -1852,6 +1945,9 @@ def _industry_recommendation_to_dict(row: IndustryRecommendation | None) -> dict
         "impact": row.impact,
         "recommended_action": row.recommended_action,
         "confidence_score": row.confidence_score,
+        "scoring_method": row.scoring_method,
+        "llm_used_for_score": bool(row.llm_used_for_score),
+        "score_features": row.score_features or {},
         "last_updated": row.last_updated.isoformat() if row.last_updated else None,
         "source_notes": row.source_notes or [],
         "created_at": row.created_at.isoformat() if row.created_at else None,
@@ -1919,6 +2015,9 @@ def _industry_opportunity_to_dict(row: IndustryOpportunity | None) -> dict | Non
         "evidence_sources": row.evidence_sources or [],
         "supporting_evidence": row.supporting_evidence or [],
         "signal_inputs": row.signal_inputs or {},
+        "scoring_method": row.scoring_method,
+        "llm_used_for_score": bool(row.llm_used_for_score),
+        "score_features": row.score_features or {},
         "source_notes": row.source_notes or [],
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
@@ -1955,7 +2054,16 @@ def get_industry_competitor_activity(limit: int = 50) -> list[dict]:
     refresh_industry_live_data()
     session = get_db_session()
     try:
-        rows = session.query(IndustryCompetitorActivity).order_by(IndustryCompetitorActivity.momentum_score.desc(), IndustryCompetitorActivity.id.desc()).limit(limit).all()
+        rows = (
+            session.query(IndustryCompetitorActivity)
+            .order_by(
+                IndustryCompetitorActivity.threat_score.desc(),
+                IndustryCompetitorActivity.momentum_score.desc(),
+                IndustryCompetitorActivity.id.desc(),
+            )
+            .limit(limit)
+            .all()
+        )
         return [_industry_competitor_activity_to_dict(row) for row in rows]
     finally:
         session.close()

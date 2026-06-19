@@ -9,6 +9,7 @@ import os
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from statistics import pstdev
 from threading import Lock
 from typing import Any
 from urllib.parse import quote_plus
@@ -36,6 +37,7 @@ from backend.database import (
     save_trend_history,
 )
 from backend.services.gemini_service import GeminiService
+from backend.services.industry_analytics_scoring import industry_analytics_scoring_engine
 from backend.services.product_impact_ml import product_impact_ml_engine
 
 logger = logging.getLogger(__name__)
@@ -928,11 +930,13 @@ class IndustryIntelligenceService:
             ),
             1,
         )
+        risk_anchor = self._average([strategic_fit_score, enterprise_interest_score, market_demand_score, competitive_advantage_score, expected_reach_score]) or 0.0
+        competitor_anchor = self._average([avg_competitor_score, market_demand_score, strategic_fit_score]) or 0.0
         risk_components = [
-            max(0.0, 65.0 - strategic_fit_score),
-            max(0.0, 60.0 - enterprise_interest_score),
-            max(0.0, avg_competitor_score - 45.0),
-            max(0.0, 55.0 - market_demand_score),
+            max(0.0, risk_anchor - strategic_fit_score),
+            max(0.0, risk_anchor - enterprise_interest_score),
+            max(0.0, avg_competitor_score - competitor_anchor),
+            max(0.0, risk_anchor - market_demand_score),
         ]
         risk_score = round(max(0.0, min(100.0, self._average(risk_components) + (15.0 if "launch" in feature_lower and "beta" not in feature_lower else 0.0))), 1)
         launch_readiness_score = round(
@@ -1224,6 +1228,9 @@ class IndustryIntelligenceService:
                 "revenue_opportunity": revenue_factor_summary,
             },
             "prediction_confidence": confidence_score,
+            "scoring_method": "ML/analytics-based",
+            "llm_used_for_score": False,
+            "score_features": ml_inputs,
             "supporting_trends": trend_matches[:5],
             "supporting_competitors": competitor_matches[:5],
             "supporting_opportunities": opportunity_matches[:5],
@@ -1306,25 +1313,30 @@ class IndustryIntelligenceService:
                 + len(trend_matches) * 1.4,
             ),
         )
+        security_risk_anchor = self._average([risk_score, market_demand_score, competitor_density]) or 0.0
         security_risk = max(
             0.0,
             min(
                 100.0,
-                (risk_score * 0.42) + max(0.0, 55.0 - market_demand_score) * 0.55 + len(competitor_matches) * 2.0,
+                (risk_score * 0.42) + max(0.0, 100.0 - security_risk_anchor) * 0.55 + len(competitor_matches) * 2.0,
             ),
         )
+        adoption_anchor = self._average([market_interest, adoption_probability_score, trend_strength]) or 0.0
         adoption_difficulty = max(
             0.0,
             min(
                 100.0,
-                100.0 - (market_interest * 0.45) - (adoption_probability_score * 0.3) + max(0.0, 60.0 - trend_strength) * 0.25,
+                100.0 - (market_interest * 0.45) - (adoption_probability_score * 0.3) + max(0.0, 100.0 - adoption_anchor) * 0.25,
             ),
         )
+        integration_anchor = self._average([enterprise_fit_score, market_demand_score, adoption_probability_score]) or 0.0
         integration_complexity = max(
             0.0,
             min(
                 100.0,
-                20.0 + len(feature_keywords) * 3.0 + max(0.0, 65.0 - enterprise_fit_score) * 0.45 + len(feature_description.split()) * 0.05,
+                (len(feature_keywords) * 3.0)
+                + len(feature_description.split()) * 0.05
+                + max(0.0, 100.0 - integration_anchor) * 0.45,
             ),
         )
         market_competition = max(
@@ -1566,7 +1578,7 @@ class IndustryIntelligenceService:
         live_trends = self._build_live_trends(company, linkedin, news, competitor_signals, now)
         keywords = self._build_keywords(company, linkedin, news, competitor_signals, live_trends, now)
         recommendations = self._build_recommendations(live_trends, linkedin, competitor_signals, now)
-        competitor_cards = self._build_competitor_cards(competitor_signals, now)
+        competitor_cards = self._build_competitor_cards(company, linkedin, news, competitor_signals, live_trends, keywords, now)
         insights = self._build_insights(company, linkedin, news, competitor_cards, live_trends, now)
         company_row = self._build_company_row(company, linkedin, keywords, now)
         company_signals = {
@@ -2252,12 +2264,25 @@ class IndustryIntelligenceService:
                 source_count=source_count,
                 last_updated=now,
             )
+            score_features = self._search_score_features(
+                company_hits=float(len(company.get("focus_keywords", [])) if company else 0),
+                news_count=article_count,
+                linkedin_count=len(linkedin.get("posts") or []),
+                competitor_count=mention_count,
+                rag_relevance=float(sum(1 for item in news if trend_name.lower() in f"{item.get('headline', '')} {item.get('summary', '')}".lower()) * 10.0),
+                keyword_count=max(1, len(counts)),
+                recency_score=10.0,
+                query_type=category,
+                query=trend_name,
+            )
+            momentum_result = industry_analytics_scoring_engine.score("momentum", score_features)
+            growth_result = industry_analytics_scoring_engine.score("growth", score_features)
             trend_payloads.append(
                 {
                     "trend_name": trend_name,
                     "category": category,
-                    "momentum_score": round(momentum, 1),
-                    "growth_score": round(growth, 1),
+                    "momentum_score": momentum_result["score"],
+                    "growth_score": growth_result["score"],
                     "source_count": source_count,
                     "evidence_count": evidence_meta["evidence_count"],
                     "last_updated": now,
@@ -2266,7 +2291,10 @@ class IndustryIntelligenceService:
                     "source_names": evidence_meta["source_names"],
                     "source_timestamps": evidence_meta["source_timestamps"],
                     "executive_summary": summary,
-                    "signal_strength": self._signal_strength(momentum),
+                    "signal_strength": self._signal_strength(momentum_result["score"]),
+                    "score_features": score_features,
+                    "scoring_method": momentum_result["scoring_method"],
+                    "llm_used_for_score": False,
                     "source_notes": source_notes,
                     "created_at": now,
                     "updated_at": now,
@@ -2320,9 +2348,6 @@ class IndustryIntelligenceService:
             ("Enterprise Adoption Keywords", adoption_terms),
         ):
             for index, term in enumerate(terms, start=1):
-                base = 100.0 - ((index - 1) * 8.0)
-                momentum = base - (0 if group_name == "Top AI Governance Keywords" else 6.0)
-                growth = base - (0 if group_name == "Fastest Growing Keywords" else 10.0)
                 source_count = self._keyword_source_count(term, company, linkedin, news, competitors, live_trends)
                 source_notes = self._keyword_sources(term, company, linkedin, news, competitors, live_trends)
                 evidence_meta = self._evidence_metadata(
@@ -2332,12 +2357,26 @@ class IndustryIntelligenceService:
                     source_count=max(1, source_count),
                     last_updated=now,
                 )
+                recency_score = self._signal_recency_score(evidence_meta["source_timestamps"], evidence_meta["last_updated"])
+                score_features = self._search_score_features(
+                    company_hits=float(source_count),
+                    news_count=len(news),
+                    linkedin_count=len(linkedin.get("posts") or []),
+                    competitor_count=len(competitors),
+                    rag_relevance=float(len(source_notes) * 8.0),
+                    keyword_count=max(1, len(term.split())),
+                    recency_score=recency_score,
+                    query_type=group_name,
+                    query=term,
+                )
+                momentum_result = industry_analytics_scoring_engine.score("momentum", score_features)
+                growth_result = industry_analytics_scoring_engine.score("growth", score_features)
                 keyword_rows.append(
                     {
                         "keyword": term,
                         "keyword_group": group_name,
-                        "momentum_score": round(min(100.0, momentum + source_count * 2.0), 1),
-                        "growth_score": round(min(100.0, growth + source_count * 3.0), 1),
+                        "momentum_score": momentum_result["score"],
+                        "growth_score": growth_result["score"],
                         "source_count": max(1, source_count),
                         "evidence_count": evidence_meta["evidence_count"],
                         "last_updated": now,
@@ -2346,6 +2385,9 @@ class IndustryIntelligenceService:
                         "source_names": evidence_meta["source_names"],
                         "source_timestamps": evidence_meta["source_timestamps"],
                         "executive_summary": f"{term} is a {group_name.lower()} signal with support from company messaging, news, and competitor activity.",
+                        "score_features": score_features,
+                        "scoring_method": momentum_result["scoring_method"],
+                        "llm_used_for_score": False,
                         "source_notes": source_notes,
                         "created_at": now,
                         "updated_at": now,
@@ -2374,20 +2416,64 @@ class IndustryIntelligenceService:
                 source_count=_safe_int(item.get("source_count"), 0),
                 last_updated=now,
             )
+            recency_score = self._signal_recency_score(item.get("source_timestamps"), item.get("last_updated"), source_notes)
+            trend_strength = self._clamp(
+                _safe_number(item.get("momentum_score"), 0.0) * 0.6 + _safe_number(item.get("growth_score"), 0.0) * 0.4,
+                0.0,
+                100.0,
+            )
+            historical_relevance = self._clamp(_safe_number(item.get("growth_score"), 0.0), 0.0, 100.0)
+            signal_consistency = self._signal_consistency_score([
+                _safe_number(item.get("momentum_score"), 0.0),
+                _safe_number(item.get("growth_score"), 0.0),
+                _safe_number(item.get("source_count"), 0.0) * 10.0,
+                _safe_number(item.get("evidence_count"), 0.0) * 8.0,
+            ])
+            score_features = self._search_score_features(
+                company_hits=max(1.0, _safe_number(item.get("source_count"), 0.0)),
+                news_count=max(1, len(source_notes) + len(item.get("source_names") or [])),
+                linkedin_count=len(linkedin.get("posts") or []),
+                competitor_count=len(competitors),
+                rag_relevance=float(trend_strength + signal_consistency / 2.0),
+                keyword_count=max(1, len(trend.split()) + len(item.get("source_names") or [])),
+                recency_score=recency_score,
+                query_type="Concept",
+                query=trend,
+            )
+            recommendation_score = industry_analytics_scoring_engine.score("opportunity", score_features)
+            confidence_score, insufficient_data = self._evidence_based_confidence(
+                evidence_count=_safe_int(item.get("evidence_count"), 0),
+                source_count=_safe_int(item.get("source_count"), 0),
+                signal_consistency=signal_consistency,
+                trend_strength=trend_strength,
+                historical_relevance=historical_relevance,
+                recency_score=recency_score,
+            )
+            score_features["insufficient_data"] = insufficient_data
+            score_features["signal_consistency"] = round(signal_consistency, 2)
+            score_features["trend_strength"] = round(trend_strength, 2)
+            score_features["historical_relevance"] = round(historical_relevance, 2)
+            score_features["recency_score"] = round(recency_score, 2)
             recommendations.append(
                 {
                     "trend": trend,
                     "reason": reasoning,
                     "impact": self._recommendation_impact(trend),
                     "recommended_action": self._recommendation_action(trend),
-                    "confidence_score": round(min(100.0, item["momentum_score"] + item["growth_score"] / 2.0), 1),
+                    "confidence_score": confidence_score if not insufficient_data else 0.0,
                     "evidence_count": evidence_meta["evidence_count"],
                     "source_count": evidence_meta["source_count"],
                     "last_updated": now,
-                    "confidence_reason": evidence_meta["confidence_reason"],
+                    "confidence_reason": "Insufficient data." if insufficient_data else (
+                        f"Backed by {_safe_int(item.get('evidence_count'), 0)} evidence signals across {_safe_int(item.get('source_count'), 0)} sources; "
+                        f"signal consistency is {signal_consistency:.0f}/100 and trend strength is {trend_strength:.0f}/100."
+                    ),
                     "evidence_sources": evidence_meta["evidence_sources"],
                     "source_names": evidence_meta["source_names"],
                     "source_timestamps": evidence_meta["source_timestamps"],
+                    "score_features": score_features,
+                    "scoring_method": recommendation_score["scoring_method"],
+                    "llm_used_for_score": False,
                     "source_notes": source_notes,
                     "created_at": now,
                     "updated_at": now,
@@ -2396,38 +2482,209 @@ class IndustryIntelligenceService:
         recommendations.sort(key=lambda item: item["confidence_score"], reverse=True)
         return recommendations
 
-    def _build_competitor_cards(self, competitor_signals: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
+    def _build_competitor_cards(
+        self,
+        company: dict[str, Any],
+        linkedin: dict[str, Any],
+        news: list[dict[str, Any]],
+        competitor_signals: list[dict[str, Any]],
+        live_trends: list[dict[str, Any]],
+        keywords: list[dict[str, Any]],
+        now: datetime,
+    ) -> list[dict[str, Any]]:
         cards: list[dict[str, Any]] = []
+        snapshot = {
+            "company": company,
+            "company_signals": {
+                "company_name": COMPANY_NAME,
+                "website": COMPANY_WEBSITE,
+                "linkedin_url": COMPANY_LINKEDIN,
+                "positioning": company.get("industry_positioning", ""),
+                "core_services": company.get("core_focus_areas", []),
+                "strategic_themes": company.get("strategic_themes", []),
+                "focus_keywords": company.get("focus_keywords", []),
+                "product_messaging": company.get("content_themes", []),
+                "source_notes": company.get("source_notes", []),
+                "last_updated": company.get("last_updated").isoformat() if isinstance(company.get("last_updated"), datetime) else None,
+            },
+            "linkedin": linkedin,
+            "news": news,
+            "competitor_cards": competitor_signals,
+            "live_trends": live_trends,
+            "keywords": keywords,
+        }
+        company_analysis = self._build_search_intelligence(COMPANY_NAME, snapshot, persist_history=False)
         for item in competitor_signals:
             last_updated = _parse_datetime(item.get("last_updated")) or now
-            evidence_meta = self._evidence_metadata(
-                article_count=0,
-                mention_count=1,
-                source_notes=item.get("source_notes") or [],
-                source_count=max(1, len(item.get("source_notes") or [])),
-                last_updated=last_updated,
+            competitor_query = item.get("name") or ""
+            competitor_analysis = self._build_search_intelligence(competitor_query, snapshot, persist_history=False)
+            left_type = company_analysis.get("query_type") or self.detect_query_type(COMPANY_NAME)
+            right_type = competitor_analysis.get("query_type") or self.detect_query_type(competitor_query)
+            strengths = self._comparison_strengths(COMPANY_NAME, competitor_query, company_analysis, competitor_analysis, left_type, right_type)
+            weaknesses = self._comparison_weaknesses(COMPANY_NAME, competitor_query, company_analysis, competitor_analysis, left_type, right_type)
+            gap_analysis = self._comparison_gap_analysis(
+                left_query=COMPANY_NAME,
+                right_query=competitor_query,
+                left=company_analysis,
+                right=competitor_analysis,
+                left_type=left_type,
+                right_type=right_type,
+                strengths=strengths,
+                weaknesses=weaknesses,
+            )
+            strategic_recommendations = self._comparison_strategic_recommendations(
+                left_query=COMPANY_NAME,
+                right_query=competitor_query,
+                left=company_analysis,
+                right=competitor_analysis,
+                left_type=left_type,
+                right_type=right_type,
+                overlap=gap_analysis.get("summary") or [],
+                gap_analysis=gap_analysis,
+            )
+            competitor_sources = self._evidence_source_names(
+                competitor_analysis.get("source_names") or [],
+                competitor_analysis.get("evidence_sources") or [],
+                [item.get("name", "")],
+                item.get("source_notes") or [],
+                [news_item.get("source", "") for news_item in competitor_analysis.get("recent_news") or []],
+            )
+            competitor_timestamps = self._unique_ordered(
+                [
+                    *[news_item.get("published_date") or news_item.get("published_at") or news_item.get("date") for news_item in competitor_analysis.get("recent_news") or []],
+                    *[mention.get("last_updated") for mention in competitor_analysis.get("competitor_mentions") or []],
+                    item.get("last_updated"),
+                ],
+                limit=12,
+            )
+            competitor_evidence_count = _safe_int(competitor_analysis.get("evidence_count") or competitor_analysis.get("source_count") or 0)
+            competitor_source_count = max(_safe_int(competitor_analysis.get("source_count") or 0), len(competitor_sources))
+            if competitor_evidence_count <= 0 or competitor_source_count <= 0:
+                continue
+            recent_signals = self._unique_ordered(
+                [
+                    *[dev for dev in item.get("latest_developments", []) if dev],
+                    *(news_item.get("headline", "") for news_item in competitor_analysis.get("recent_news") or [] if news_item.get("headline")),
+                    competitor_analysis.get("executive_summary", ""),
+                ],
+                limit=6,
+            )
+            recency_score = self._signal_recency_score(competitor_timestamps, competitor_analysis.get("last_updated"), item.get("last_updated"))
+            search_visibility = self._clamp(
+                _safe_number(competitor_analysis.get("confidence_score"), 0.0) * 0.45
+                + _safe_number(competitor_analysis.get("trend_score"), 0.0) * 0.35
+                + _safe_number(item.get("momentum_score"), 0.0) * 0.20,
+                0.0,
+                100.0,
+            )
+            competitor_activity = self._clamp(
+                _safe_number(item.get("momentum_score"), 0.0) * 0.5
+                + _safe_number(competitor_analysis.get("momentum_score"), 0.0) * 0.3
+                + _safe_number(competitor_analysis.get("trend_score"), 0.0) * 0.2,
+                0.0,
+                100.0,
+            )
+            trend_frequency = len(recent_signals) + len(competitor_analysis.get("recent_news") or []) + len(competitor_analysis.get("competitor_mentions") or [])
+            market_relevance = self._clamp(
+                max(
+                    _safe_number(competitor_analysis.get("trend_score"), 0.0),
+                    _safe_number(competitor_analysis.get("growth_score"), 0.0),
+                    search_visibility,
+                ),
+                0.0,
+                100.0,
+            )
+            historical_growth = self._clamp(
+                max(
+                    _safe_number(competitor_analysis.get("growth_score"), 0.0),
+                    _safe_number(competitor_analysis.get("trend_score"), 0.0),
+                ),
+                0.0,
+                100.0,
+            )
+            score_features = self._search_score_features(
+                company_hits=company_analysis.get("evidence_count", 0) or company_analysis.get("source_count", 0) or 0,
+                news_count=max(1, len(competitor_analysis.get("recent_news") or []) + len(recent_signals)),
+                linkedin_count=max(0, len(competitor_analysis.get("competitor_mentions") or [])),
+                competitor_count=max(1, len(recent_signals)),
+                rag_relevance=max(competitor_evidence_count * 7.0, search_visibility, market_relevance),
+                keyword_count=max(1, len(competitor_sources) + len(gap_analysis.get("market_positioning_gaps") or [])),
+                recency_score=recency_score,
+                query_type=right_type,
+                query=competitor_query,
+            )
+            score_features["search_visibility"] = round(search_visibility, 2)
+            score_features["trend_frequency"] = float(trend_frequency)
+            score_features["competitor_activity"] = competitor_activity
+            score_features["market_gap"] = max(0.0, 100.0 - len(gap_analysis.get("market_positioning_gaps") or []) * 18.0 - len(gap_analysis.get("enterprise_readiness_gaps") or []) * 12.0)
+            score_features["historical_growth"] = historical_growth
+            threat_result = industry_analytics_scoring_engine.score("threat", score_features)
+            threat_score = threat_result["score"]
+            signal_consistency = self._signal_consistency_score([
+                threat_score,
+                competitor_activity,
+                market_relevance,
+                historical_growth,
+                search_visibility,
+            ])
+            confidence_score, insufficient_data = self._evidence_based_confidence(
+                evidence_count=competitor_evidence_count,
+                source_count=competitor_source_count,
+                signal_consistency=signal_consistency,
+                trend_strength=market_relevance,
+                historical_relevance=historical_growth,
+                recency_score=recency_score,
+            )
+            score_features["insufficient_data"] = insufficient_data
+            score_features["signal_consistency"] = round(signal_consistency, 2)
+            score_features["trend_strength"] = round(market_relevance, 2)
+            score_features["historical_relevance"] = round(historical_growth, 2)
+            score_features["recency_score"] = round(recency_score, 2)
+            score_reason = (
+                "Insufficient data."
+                if insufficient_data
+                else (
+                    f"Threat score combines {competitor_evidence_count} evidence signals, {competitor_source_count} sources, "
+                    f"competitor activity {competitor_activity:.0f}/100, search visibility {search_visibility:.0f}/100, "
+                    f"and market gap {score_features['market_gap']:.0f}/100."
+                )
             )
             cards.append(
                 {
                     "name": item["name"],
                     "focus_area": item["focus_area"],
                     "activity_summary": item["activity_summary"],
-                    "momentum_score": item["momentum_score"],
+                    "momentum_score": self._clamp(
+                        _safe_number(item.get("momentum_score"), 0.0) * 0.55
+                        + _safe_number(competitor_analysis.get("growth_score"), 0.0) * 0.25
+                        + search_visibility * 0.20,
+                        0.0,
+                        100.0,
+                    ),
                     "strategic_position": item["strategic_position"],
+                    "threat_score": threat_score,
+                    "confidence_score": confidence_score if not insufficient_data else 0.0,
+                    "evidence_count": competitor_evidence_count,
+                    "source_count": competitor_source_count,
+                    "source_names": competitor_sources,
+                    "source_timestamps": competitor_timestamps,
+                    "recent_signals": recent_signals,
+                    "strengths": strengths,
+                    "weaknesses": weaknesses,
+                    "strategic_recommendations": strategic_recommendations[:3],
+                    "gap_analysis": gap_analysis,
+                    "score_reason": score_reason,
+                    "score_features": score_features,
+                    "scoring_method": threat_result["scoring_method"],
+                    "llm_used_for_score": False,
                     "last_updated": last_updated,
-                    "evidence_count": evidence_meta["evidence_count"],
-                    "source_count": evidence_meta["source_count"],
-                    "confidence_reason": evidence_meta["confidence_reason"],
-                    "evidence_sources": evidence_meta["evidence_sources"],
-                    "source_names": evidence_meta["source_names"],
-                    "source_timestamps": evidence_meta["source_timestamps"],
                     "source_notes": item["source_notes"],
                     "created_at": now,
                     "updated_at": now,
                 }
             )
-        cards.sort(key=lambda item: item["momentum_score"], reverse=True)
-        return cards
+        cards.sort(key=lambda item: (_safe_number(item.get("threat_score"), 0.0), _safe_number(item.get("momentum_score"), 0.0)), reverse=True)
+        return cards[:6]
 
     def _build_insights(
         self,
@@ -2747,37 +3004,22 @@ class IndustryIntelligenceService:
             if evidence_count <= 0 or source_count <= 0:
                 continue
 
-            opportunity_score = max(
-                0.0,
-                min(
-                    100.0,
-                    (launch_score * 0.28)
-                    + (revenue_score * 0.24)
-                    + (market_demand * 0.18)
-                    + (competitive_advantage * 0.15)
-                    + (search_relevance * 0.15),
-                ),
-            )
-            confidence_score = max(
-                0.0,
-                min(
-                    95.0,
-                    22.0
-                    + min(26.0, evidence_count * 5.0)
-                    + min(18.0, source_count * 2.5)
-                    + min(12.0, search_confidence * 0.12)
-                    + min(10.0, launch_confidence * 0.12)
-                    + min(10.0, revenue_confidence * 0.12)
-                    + min(8.0, trend_frequency * 1.2),
-                ),
-            )
-            recency_points = 0.0
-            for timestamp in source_timestamps[:5]:
-                parsed = _parse_datetime(timestamp)
-                if parsed:
-                    age_days = max(0.0, (now - parsed).total_seconds() / 86400.0)
-                    recency_points = max(recency_points, max(0.0, 12.0 - min(12.0, age_days * 1.2)))
-            confidence_score = min(95.0, confidence_score + recency_points)
+            mention_count = len(matched_trends) + len(matched_keywords) + len(matched_competitors)
+            score_features = {
+                "mention_count": float(mention_count),
+                "source_count": float(source_count),
+                "evidence_count": float(evidence_count),
+                "recency_score": 10.0,
+                "trend_frequency": float(trend_frequency),
+                "keyword_relevance": float(search_relevance),
+                "competitor_activity": float(competitor_density),
+                "market_gap": float(max(0.0, 100.0 - competitor_density)),
+                "historical_growth": float(trend_strength),
+            }
+            opportunity_result = industry_analytics_scoring_engine.score("opportunity", score_features)
+            product_impact_result = industry_analytics_scoring_engine.score("product_impact", score_features)
+            opportunity_score = opportunity_result["score"]
+            confidence_score = max(opportunity_result["confidence_score"], _safe_number(product_impact_result.get("confidence_score"), 0.0))
             if confidence_score < 45.0 and evidence_count < 2:
                 continue
 
@@ -2841,8 +3083,8 @@ class IndustryIntelligenceService:
                     "business_value": spec["business_value"],
                     "recommended_action": spec["recommended_action"],
                     "urgency": "High" if opportunity_score >= 75 or confidence_score >= 75 else "Medium" if opportunity_score >= 55 else "Low",
-                    "opportunity_score": round(opportunity_score, 1),
-                    "confidence_score": round(confidence_score, 1),
+                    "opportunity_score": opportunity_score,
+                    "confidence_score": confidence_score,
                     "confidence_reason": confidence_reason,
                     "evidence_count": int(evidence_count),
                     "source_count": int(source_count),
@@ -2850,6 +3092,10 @@ class IndustryIntelligenceService:
                     "source_timestamps": source_timestamps,
                     "evidence_sources": source_names,
                     "supporting_evidence": supporting_evidence,
+                    "product_impact_score": product_impact_result["score"],
+                    "score_features": score_features,
+                    "scoring_method": opportunity_result["scoring_method"],
+                    "llm_used_for_score": False,
                     "signal_inputs": {
                         "market_demand": round(market_demand, 2),
                         "enterprise_fit": round(enterprise_fit, 2),
@@ -3149,6 +3395,9 @@ class IndustryIntelligenceService:
                         recommended_action=self._recommendation_action(row["trend_name"]),
                         momentum_score=row["momentum_score"],
                         signal_strength=row["signal_strength"],
+                        scoring_method=row.get("scoring_method", "ML/analytics-based"),
+                        llm_used_for_score=row.get("llm_used_for_score", False),
+                        score_features=row.get("score_features", {}),
                         source_notes=row["source_notes"],
                         created_at=row["created_at"],
                         updated_at=row["updated_at"],
@@ -3167,6 +3416,9 @@ class IndustryIntelligenceService:
                         last_updated=row["last_updated"],
                         executive_summary=row["executive_summary"],
                         signal_strength=row["signal_strength"],
+                        scoring_method=row.get("scoring_method", "ML/analytics-based"),
+                        llm_used_for_score=row.get("llm_used_for_score", False),
+                        score_features=row.get("score_features", {}),
                         source_notes=row["source_notes"],
                         created_at=row["created_at"],
                         updated_at=row["updated_at"],
@@ -3199,6 +3451,9 @@ class IndustryIntelligenceService:
                         source_count=row["source_count"],
                         last_updated=row["last_updated"],
                         executive_summary=row["executive_summary"],
+                        scoring_method=row.get("scoring_method", "ML/analytics-based"),
+                        llm_used_for_score=row.get("llm_used_for_score", False),
+                        score_features=row.get("score_features", {}),
                         source_notes=row["source_notes"],
                         created_at=row["created_at"],
                         updated_at=row["updated_at"],
@@ -3214,6 +3469,21 @@ class IndustryIntelligenceService:
                         activity_summary=row["activity_summary"],
                         momentum_score=row["momentum_score"],
                         strategic_position=row["strategic_position"],
+                        threat_score=row.get("threat_score", row["momentum_score"]),
+                        confidence_score=row.get("confidence_score", row.get("threat_score", row["momentum_score"])),
+                        evidence_count=row.get("evidence_count", 0),
+                        source_count=row.get("source_count", 0),
+                        source_names=row.get("source_names", []),
+                        source_timestamps=row.get("source_timestamps", []),
+                        recent_signals=row.get("recent_signals", []),
+                        strengths=row.get("strengths", []),
+                        weaknesses=row.get("weaknesses", []),
+                        strategic_recommendations=row.get("strategic_recommendations", []),
+                        gap_analysis=row.get("gap_analysis", {}),
+                        score_reason=row.get("score_reason", ""),
+                        scoring_method=row.get("scoring_method", "ML/analytics-based"),
+                        llm_used_for_score=row.get("llm_used_for_score", False),
+                        score_features=row.get("score_features", {}),
                         last_updated=row["last_updated"],
                         source_notes=row["source_notes"],
                         created_at=row["created_at"],
@@ -3245,6 +3515,9 @@ class IndustryIntelligenceService:
                         impact=row["impact"],
                         recommended_action=row["recommended_action"],
                         confidence_score=row["confidence_score"],
+                        scoring_method=row.get("scoring_method", "ML/analytics-based"),
+                        llm_used_for_score=row.get("llm_used_for_score", False),
+                        score_features=row.get("score_features", {}),
                         last_updated=row["last_updated"],
                         source_notes=row["source_notes"],
                         created_at=row["created_at"],
@@ -3272,6 +3545,9 @@ class IndustryIntelligenceService:
                         evidence_sources=row.get("evidence_sources", []),
                         supporting_evidence=row.get("supporting_evidence", []),
                         signal_inputs=row.get("signal_inputs", {}),
+                        scoring_method=row.get("scoring_method", "ML/analytics-based"),
+                        llm_used_for_score=row.get("llm_used_for_score", False),
+                        score_features=row.get("score_features", {}),
                         source_notes=row["source_notes"],
                         created_at=row.get("created_at"),
                         updated_at=row.get("updated_at"),
@@ -3509,7 +3785,20 @@ class IndustryIntelligenceService:
                             "name": competitor["name"],
                             "focus_area": competitor["focus_area"],
                             "activity_summary": item.get("snippet") or item.get("title") or competitor["positioning"],
-                            "momentum_score": min(100.0, 60.0 + score * 10.0),
+                            "momentum_score": industry_analytics_scoring_engine.score(
+                                "momentum",
+                                self._search_score_features(
+                                    company_hits=1.0,
+                                    news_count=1,
+                                    linkedin_count=0,
+                                    competitor_count=1,
+                                    rag_relevance=score * 10.0,
+                                    keyword_count=1,
+                                    recency_score=10.0,
+                                    query_type="Company",
+                                    query=competitor["name"],
+                                ),
+                            )["score"],
                             "strategic_position": competitor["positioning"],
                             "last_updated": _NOW().isoformat(),
                             "source_notes": [item.get("title", ""), item.get("snippet", "")],
@@ -3527,7 +3816,20 @@ class IndustryIntelligenceService:
                             "name": item["name"],
                             "focus_area": item["focus_area"],
                             "activity_summary": item["positioning"],
-                            "momentum_score": 65.0,
+                            "momentum_score": industry_analytics_scoring_engine.score(
+                                "momentum",
+                                self._search_score_features(
+                                    company_hits=1.0,
+                                    news_count=0,
+                                    linkedin_count=0,
+                                    competitor_count=1,
+                                    rag_relevance=25.0,
+                                    keyword_count=1,
+                                    recency_score=8.0,
+                                    query_type="Company",
+                                    query=item["name"],
+                                ),
+                            )["score"],
                             "strategic_position": item["positioning"],
                             "last_updated": _NOW().isoformat(),
                             "source_notes": [item["search_query"]],
@@ -3642,6 +3944,17 @@ class IndustryIntelligenceService:
             recency_score=recency_score,
             query_type=query_type,
         )
+        score_features = self._search_score_features(
+            company_hits=company_hits,
+            news_count=len(unique_news),
+            linkedin_count=len(matched_posts),
+            competitor_count=len(matched_competitors),
+            rag_relevance=rag_relevance,
+            keyword_count=len(matched_keywords),
+            recency_score=recency_score,
+            query_type=query_type,
+            query=query,
+        )
 
         executive_summary = self._generate_search_executive_summary(
             query=query,
@@ -3697,6 +4010,9 @@ class IndustryIntelligenceService:
             "last_updated": evidence_meta["last_updated"],
             "timestamp": evidence_meta["timestamp"],
             "confidence_reason": evidence_meta["confidence_reason"],
+            "score_features": score_features,
+            "scoring_method": "ML/analytics-based",
+            "llm_used_for_score": False,
         }
         if persist_history:
             self._capture_trend_history_entry(result)
@@ -4199,6 +4515,60 @@ class IndustryIntelligenceService:
             "confidence_reason": confidence_reason,
         }
 
+    def _signal_recency_score(self, *values: Any) -> float:
+        timestamps: list[datetime] = []
+        for value in values:
+            if isinstance(value, (list, tuple, set)):
+                for item in value:
+                    dt = _parse_datetime(item)
+                    if dt:
+                        timestamps.append(dt)
+            else:
+                dt = _parse_datetime(value)
+                if dt:
+                    timestamps.append(dt)
+        if not timestamps:
+            return 0.0
+        latest = max(timestamps)
+        age_days = max(0.0, (_NOW() - latest).total_seconds() / 86400.0)
+        return self._clamp(12.0 - min(12.0, age_days * 1.2), 0.0, 12.0)
+
+    def _signal_consistency_score(self, values: list[Any]) -> float:
+        filtered = [self._clamp(_safe_number(value), 0.0, 100.0) for value in values if value is not None]
+        if not filtered:
+            return 0.0
+        if len(filtered) == 1:
+            return max(35.0, filtered[0])
+        spread = pstdev(filtered)
+        return self._clamp(100.0 - min(55.0, spread * 2.2), 0.0, 100.0)
+
+    def _evidence_based_confidence(
+        self,
+        *,
+        evidence_count: int,
+        source_count: int,
+        signal_consistency: float,
+        trend_strength: float,
+        historical_relevance: float,
+        recency_score: float = 0.0,
+    ) -> tuple[float, bool]:
+        if evidence_count < 2 or source_count < 2:
+            return 0.0, True
+        evidence_band = self._clamp(evidence_count * 16.0, 0.0, 100.0)
+        source_band = self._clamp(source_count * 12.0, 0.0, 100.0)
+        trend_band = self._clamp(trend_strength, 0.0, 100.0)
+        history_band = self._clamp(historical_relevance, 0.0, 100.0)
+        recency_band = self._clamp(recency_score * 8.0, 0.0, 100.0)
+        confidence = (
+            evidence_band * 0.26
+            + source_band * 0.18
+            + signal_consistency * 0.20
+            + trend_band * 0.18
+            + history_band * 0.10
+            + recency_band * 0.08
+        )
+        return round(self._clamp(confidence, 0.0, 100.0), 1), False
+
     def _calculate_search_trend_score(
         self,
         *,
@@ -4212,19 +4582,18 @@ class IndustryIntelligenceService:
         query_type: str = "Concept",
         query: str = "",
     ) -> int:
-        source_count = company_hits + news_count + linkedin_count + competitor_count + keyword_count
-        signal_score = (
-            min(18.0, company_hits * 4.0)
-            + min(24.0, news_count * 5.0)
-            + min(18.0, linkedin_count * 6.0)
-            + min(16.0, competitor_count * 5.5)
-            + min(12.0, keyword_count * 1.6)
-            + min(12.0, rag_relevance / 5.0)
-            + min(10.0, recency_score)
-            + min(10.0, source_count * 0.9)
+        features = self._search_score_features(
+            company_hits=company_hits,
+            news_count=news_count,
+            linkedin_count=linkedin_count,
+            competitor_count=competitor_count,
+            rag_relevance=rag_relevance,
+            keyword_count=keyword_count,
+            recency_score=recency_score,
+            query_type=query_type,
+            query=query,
         )
-        raw_score = 12.0 + signal_score + self._query_signal_boost(query_type, query)
-        return max(0, min(95, int(round(raw_score))))
+        return int(round(industry_analytics_scoring_engine.score("momentum", features)["score"]))
 
     def _calculate_search_growth_score(
         self,
@@ -4235,15 +4604,32 @@ class IndustryIntelligenceService:
         competitor_count: int,
         recency_score: float = 0.0,
     ) -> int:
-        breadth_bonus = min(24, (news_count + linkedin_count + competitor_count) * 4)
-        raw_score = trend_score * 0.7 + breadth_bonus + min(8.0, recency_score * 0.4)
-        return max(0, min(95, int(round(raw_score))))
+        features = self._search_score_features(
+            company_hits=max(0.0, trend_score / 12.0),
+            news_count=news_count,
+            linkedin_count=linkedin_count,
+            competitor_count=competitor_count,
+            rag_relevance=max(0.0, trend_score * 0.8),
+            keyword_count=max(1.0, news_count + linkedin_count),
+            recency_score=recency_score,
+            query_type="Concept",
+            query="growth",
+        )
+        return int(round(industry_analytics_scoring_engine.score("growth", features)["score"]))
 
     def _calculate_search_confidence(self, *, trend_score: int, source_count: int, matched_items: int, recency_score: float = 0.0, query_type: str = "Concept") -> int:
-        signal_quality = min(20.0, matched_items * 1.6) + min(10.0, source_count * 2.0) + min(8.0, recency_score * 0.6)
-        query_boost = 4.0 if query_type in {"AI Model", "Company", "Governance", "Security"} else 2.0
-        raw_score = 22.0 + trend_score * 0.38 + signal_quality + query_boost
-        return max(0, min(95, int(round(raw_score))))
+        features = self._search_score_features(
+            company_hits=max(0.0, trend_score / 10.0),
+            news_count=matched_items,
+            linkedin_count=0,
+            competitor_count=0,
+            rag_relevance=source_count * 8.0,
+            keyword_count=max(1.0, matched_items),
+            recency_score=recency_score,
+            query_type=query_type,
+            query="confidence",
+        )
+        return int(round(industry_analytics_scoring_engine.score("product_impact", features)["confidence_score"]))
 
     def _trend_momentum_label(self, score: int) -> str:
         if score >= 75:
@@ -4251,6 +4637,41 @@ class IndustryIntelligenceService:
         if score >= 45:
             return "Moderate"
         return "Low"
+
+    def _search_score_features(
+        self,
+        *,
+        company_hits: float,
+        news_count: int,
+        linkedin_count: int,
+        competitor_count: int,
+        rag_relevance: float,
+        keyword_count: int,
+        recency_score: float = 0.0,
+        query_type: str = "Concept",
+        query: str = "",
+    ) -> dict[str, float]:
+        mention_count = max(0.0, company_hits + news_count + linkedin_count + competitor_count)
+        source_count = max(0.0, company_hits + news_count + linkedin_count + competitor_count + keyword_count)
+        evidence_count = max(1.0, source_count + max(0.0, rag_relevance / 10.0))
+        trend_frequency = max(0.0, news_count + linkedin_count + competitor_count + keyword_count)
+        keyword_relevance = max(0.0, min(100.0, (company_hits * 8.0) + (keyword_count * 9.0) + rag_relevance * 0.5))
+        competitor_activity = max(0.0, min(100.0, competitor_count * 12.0 + max(0.0, rag_relevance * 0.1)))
+        market_gap = max(0.0, min(100.0, 100.0 - competitor_activity - (keyword_count * 1.8)))
+        historical_growth = max(0.0, min(100.0, (news_count * 6.0) + (linkedin_count * 5.0) + (competitor_count * 3.0) + recency_score * 1.2))
+        return {
+            "mention_count": mention_count,
+            "source_count": source_count,
+            "evidence_count": evidence_count,
+            "recency_score": recency_score,
+            "trend_frequency": trend_frequency,
+            "keyword_relevance": keyword_relevance,
+            "competitor_activity": competitor_activity,
+            "market_gap": market_gap,
+            "historical_growth": historical_growth,
+            "query_type": query_type,
+            "query_length": float(len(query or "")),
+        }
 
     def _generate_search_executive_summary(
         self,
@@ -5667,18 +6088,20 @@ class IndustryIntelligenceService:
         return f"{competitor_name} is maintaining a visible enterprise AI push across recent public search results."
 
     def _score_competitor_momentum(self, results: list[dict[str, Any]], competitor_name: str) -> float:
-        base = 60.0 + len(results) * 4.0
-        recent_boost = 0.0
+        if not results:
+            return 0.0
+        signal_strength = 0.0
         for result in results:
             text = f"{result.get('title', '')} {result.get('snippet', '')}".lower()
             if any(term in text for term in ("new", "launch", "introduc", "update", "release", "agent", "security")):
-                recent_boost += 4.0
+                signal_strength += 4.0
         if competitor_name.lower() in " ".join(result.get("title", "").lower() for result in results):
-            recent_boost += 4.0
-        return round(min(100.0, base + recent_boost), 1)
+            signal_strength += 4.0
+        result_anchor = self._average([len(results) * 8.0, signal_strength * 4.0]) or 0.0
+        return round(min(100.0, result_anchor), 1)
 
     def _news_relevance(self, query: str, title: str, summary: str, published_at: datetime | None) -> float:
-        relevance = 55.0
+        relevance = 0.0
         lower = f"{query} {title} {summary}".lower()
         enterprise_terms = ("ai", "enterprise ai", "governance", "agentic", "security", "llm", "rag", "risk", "compliance", "trustworthy", "monitoring", "model", "openai", "anthropic", "claude", "chatgpt", "gemini", "mcp")
         matched_terms = sum(1 for term in enterprise_terms if term in lower)

@@ -25,4 +25,8 @@ database/*.sqlite3
 models/*.joblib
 models/*.pkl
 models/*.pickle
+models/**/*.joblib
+models/**/*.pkl
+models/**/*.pickle
+models/industry_analytics/
 node_modules/

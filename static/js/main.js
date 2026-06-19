@@ -273,6 +273,7 @@ function setupDashboard(root) {
   const industrySearchHistoryDelta = document.getElementById("industry-search-history-delta");
   const industrySearchHistoryDirection = document.getElementById("industry-search-history-direction");
   const industrySearchHistoryStrip = document.getElementById("industry-search-history-strip");
+  const industrySearchHistory = document.getElementById("industry-search-history");
   const industryCompareBox = document.getElementById("industryCompareBox");
   const industryCompareQ1 = document.getElementById("industryCompareQ1");
   const industryCompareQ2 = document.getElementById("industryCompareQ2");
@@ -286,7 +287,6 @@ function setupDashboard(root) {
   const industryCompareEvidence = document.getElementById("industry-compare-evidence");
   const industryCompareSummary = document.getElementById("industry-compare-summary");
   const industryCompareStrengths = document.getElementById("industry-compare-strengths");
-  const industryCompareWeaknesses = document.getElementById("industry-compare-weaknesses");
   const industryCompareNews = document.getElementById("industry-compare-news");
   const industryCompareLeftWinsLabel = document.getElementById("industry-compare-left-wins-label");
   const industryCompareRightWinsLabel = document.getElementById("industry-compare-right-wins-label");
@@ -310,7 +310,6 @@ function setupDashboard(root) {
   const industryLeaderboardConcepts = document.getElementById("industry-leaderboard-concepts");
   const industryCompanyName = document.getElementById("industry-company-name");
   const industryCompanyOverview = document.getElementById("industry-company-overview");
-  const industryCompanyOverviewCard = document.getElementById("industry-company-overview-card");
   const industryCompanyFocus = document.getElementById("industry-company-focus");
   const industryCompanyPositioning = document.getElementById("industry-company-positioning");
   const industryCompanyThemes = document.getElementById("industry-company-themes");
@@ -567,6 +566,13 @@ function setupDashboard(root) {
     industryElement.classList.toggle("active", shouldShow);
   }
 
+  function syncIndustryCompanyOverviewVisibility() {
+    const isExecutive = state.industry?.activeSection === "executive";
+    if (industryCompanyOverview) {
+      industryCompanyOverview.hidden = !isExecutive;
+    }
+  }
+
   function showIndustrySection(sectionName) {
     const nextSection = normalizeIndustrySection(sectionName);
     state.industry = state.industry || {};
@@ -603,6 +609,7 @@ function setupDashboard(root) {
     };
 
     (visibleSections[nextSection] || visibleSections.executive).forEach((section) => setVisible(section, true));
+    syncIndustryCompanyOverviewVisibility();
     if (nextSection === "product-impact" && state.industry?.productImpact) {
       renderIndustryProductImpactResult(state.industry.productImpact);
     }
@@ -945,9 +952,26 @@ function setupDashboard(root) {
     return Number.isNaN(date.getTime()) ? "Just now" : date.toLocaleString();
   }
 
+  function formatUsefulDate(value) {
+    const formatted = formatDate(value);
+    return formatted === "Just now" ? "" : formatted;
+  }
+
   function safeNumber(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function isMeaningfulDisplayValue(value) {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "boolean") return value === true;
+    if (typeof value === "number") return Number.isFinite(value) && value !== 0;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return false;
+      return !["unavailable", "n/a", "na", "none", "null", "just now", "false", "0", "insufficient evidence available", "ml/analytics-based"].includes(normalized);
+    }
+    return true;
   }
 
   function viralityLabelFromScore(score) {
@@ -1817,12 +1841,12 @@ function setupDashboard(root) {
       const evidenceParts = [];
       const evidenceCount = safeNumber(item.evidence_count ?? item.evidenceCount ?? item.article_count ?? 0);
       const sourceCount = safeNumber(item.source_count ?? item.sourceCount ?? 0);
-      const updatedAt = item.last_updated || item.lastUpdated || item.updated_at || item.created_at || item.timestamp || null;
+      const updatedAt = formatUsefulDate(item.last_updated || item.lastUpdated || item.updated_at || item.created_at || item.timestamp || null);
       const confidenceReason = item.confidence_reason || item.confidenceReason || "";
       if (evidenceCount > 0) evidenceParts.push(`Evidence ${evidenceCount.toFixed(0)}`);
       if (sourceCount > 0) evidenceParts.push(`Sources ${sourceCount.toFixed(0)}`);
-      if (updatedAt) evidenceParts.push(`Updated ${formatDate(updatedAt)}`);
-      if (confidenceReason) evidenceParts.push(confidenceReason);
+      if (updatedAt) evidenceParts.push(`Updated ${updatedAt}`);
+      if (isMeaningfulDisplayValue(confidenceReason)) evidenceParts.push(confidenceReason);
       const evidenceDetail = evidenceParts.length ? evidenceParts.join(" • ") : "";
       return `
         <div class="industry-report-list__item">
@@ -1838,6 +1862,66 @@ function setupDashboard(root) {
     const values = Array.isArray(items) ? items.filter(Boolean) : [];
     const mapped = typeof transform === "function" ? values.map((item) => transform(item)).filter(Boolean) : values;
     return renderIndustryList(mapped, emptyLabel);
+  }
+
+  function renderIndustrySignalBullets(items = []) {
+    const values = Array.isArray(items) ? items.map((item) => {
+      if (!item) return "";
+      if (typeof item === "string") return item.trim();
+      const label = item.label || item.title || item.name || item.signal || item.summary || item.detail || "";
+      const value = item.value || item.metric || item.result || item.description || "";
+      if (label && value && String(value).trim() && String(value).trim() !== String(label).trim()) {
+        return `${label}: ${value}`.trim();
+      }
+      return String(label || value || "").trim();
+    }).filter(Boolean) : [];
+    const list = values.slice(0, 3);
+    if (!list.length) return "";
+    return `<ul class="industry-card__signals">${list.map((value) => `<li class="industry-card__signal">${escapeHtml(value)}</li>`).join("")}</ul>`;
+  }
+
+  function renderIndustryScoreLabel(value, suffix = "%", item = {}) {
+    const insufficient = Boolean(
+      item?.score_features?.insufficient_data ||
+      item?.score_reason === "Insufficient data." ||
+      item?.confidence_reason === "Insufficient data." ||
+      item?.score_reason === "Insufficient evidence available." ||
+      item?.confidence_reason === "Insufficient evidence available."
+    );
+    const numeric = Number(value);
+    if (insufficient || !Number.isFinite(numeric) || numeric <= 0) {
+      return "Insufficient data";
+    }
+    return `${safeNumber(numeric).toFixed(0)}${suffix}`;
+  }
+
+  function normalizeIndustryText(value) {
+    return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  function normalizeIndustryKey(parts = []) {
+    return parts
+      .map((value) => normalizeIndustryText(value))
+      .filter(Boolean)
+      .join("|")
+      .replace(/[^\w| ]+/g, "");
+  }
+
+  function getClosestIndustryCard(element) {
+    if (!element || typeof element.closest !== "function") return null;
+    return element.closest(".industry-summary-card, .industry-card, .industry-search-result__panel");
+  }
+
+  function setIndustryCardVisibility(element, hasContent) {
+    const card = getClosestIndustryCard(element);
+    if (card) {
+      card.hidden = !hasContent;
+    }
+  }
+
+  function renderIndustryCompactList(items = [], emptyLabel = "No data yet", limit = 3) {
+    const values = Array.isArray(items) ? items.filter(Boolean).slice(0, limit) : [];
+    return values.length ? renderIndustryList(values, emptyLabel) : "";
   }
 
   function groupIndustryKeywords(items = []) {
@@ -1858,15 +1942,46 @@ function setupDashboard(root) {
     const item = company || {};
     state.industry.company = item;
     if (industryCompanyName) industryCompanyName.textContent = item.company_name || "Giggso";
-    const companySummary = item.company_summary || item.overview || "Loading company intelligence...";
+    const companySummary = item.company_summary || item.overview || "";
     const marketNarrative = item.market_narrative || "";
-    if (industryCompanyOverview) industryCompanyOverview.textContent = [companySummary, marketNarrative].filter(Boolean).join(" ");
-    if (industryCompanyOverviewCard) industryCompanyOverviewCard.textContent = [companySummary, marketNarrative].filter(Boolean).join(" ");
-    if (industryCompanyPositioning) industryCompanyPositioning.textContent = item.strategic_direction || item.industry_positioning || "Loading positioning...";
-    if (industryCompanyLocation) industryCompanyLocation.textContent = item.headquarters ? `${item.headquarters}` : "Headquarters";
-    if (industryCompanySize) industryCompanySize.textContent = item.company_size || "Enterprise company";
-    if (industryCompanyFocus) industryCompanyFocus.innerHTML = renderIndustryChips(item.focus_keywords || item.core_focus_areas, "No focus areas yet");
-    if (industryCompanyThemes) industryCompanyThemes.innerHTML = renderIndustryChips(item.recent_strategic_themes || item.strategic_themes, "No strategic themes yet");
+    const overviewText = [companySummary, marketNarrative].filter(Boolean).join(" ").trim();
+    if (industryCompanyOverview) {
+      industryCompanyOverview.textContent = overviewText;
+      industryCompanyOverview.hidden = !overviewText;
+    }
+    if (industryCompanyPositioning) {
+      const positioningText = item.strategic_direction || item.industry_positioning || "";
+      industryCompanyPositioning.textContent = positioningText;
+      setIndustryCardVisibility(industryCompanyPositioning, Boolean(positioningText));
+    }
+    if (industryCompanyLocation) {
+      const locationText = item.headquarters || "";
+      industryCompanyLocation.textContent = locationText;
+      industryCompanyLocation.hidden = !locationText;
+    }
+    if (industryCompanySize) {
+      const sizeText = item.company_size || "";
+      industryCompanySize.textContent = sizeText;
+      industryCompanySize.hidden = !sizeText;
+    }
+    if (industryCompanyFocus) {
+      const focusItems = Array.isArray(item.focus_keywords || item.core_focus_areas) ? (item.focus_keywords || item.core_focus_areas) : [];
+      industryCompanyFocus.innerHTML = focusItems.length ? renderIndustryChips(focusItems) : "";
+      setIndustryCardVisibility(industryCompanyFocus, focusItems.length > 0);
+    }
+    if (industryCompanyThemes) {
+      const themeItems = Array.isArray(item.recent_strategic_themes || item.strategic_themes) ? (item.recent_strategic_themes || item.strategic_themes) : [];
+      industryCompanyThemes.innerHTML = themeItems.length ? renderIndustryChips(themeItems) : "";
+      setIndustryCardVisibility(industryCompanyThemes, themeItems.length > 0);
+    }
+    if (industrySummarySection) {
+      const visibleSummaryCards = [industryCompanyFocus, industryCompanyPositioning, industryCompanyThemes].filter((element) => {
+        const card = getClosestIndustryCard(element);
+        return Boolean(card && !card.hidden);
+      }).length;
+      industrySummarySection.hidden = visibleSummaryCards === 0;
+    }
+    syncIndustryCompanyOverviewVisibility();
   }
 
   function renderIndustryCount(el, count) {
@@ -1963,14 +2078,14 @@ function setupDashboard(root) {
   function renderIndustryEvidenceFacts(item = {}) {
     const evidenceCount = safeNumber(item.evidence_count ?? item.evidenceCount ?? item.article_count ?? 0);
     const sourceCount = safeNumber(item.source_count ?? item.sourceCount ?? 0);
-    const lastUpdated = item.last_updated || item.lastUpdated || item.updated_at || item.created_at || item.timestamp || null;
-    const confidenceReason = item.confidence_reason || item.confidenceReason || (evidenceCount > 0 ? `Evidence-backed from ${evidenceCount.toFixed(0)} signals.` : "Insufficient evidence available.");
-    return `
-      <div><span>Evidence count</span><strong>${escapeHtml(evidenceCount.toFixed(0))}</strong></div>
-      <div><span>Source count</span><strong>${escapeHtml(sourceCount.toFixed(0))}</strong></div>
-      <div><span>Last updated</span><strong>${escapeHtml(formatDate(lastUpdated))}</strong></div>
-      <div><span>Confidence reason</span><strong>${escapeHtml(confidenceReason)}</strong></div>
-    `;
+    const lastUpdated = formatUsefulDate(item.last_updated || item.lastUpdated || item.updated_at || item.created_at || item.timestamp || null);
+    const confidenceReason = item.confidence_reason || item.confidenceReason || (evidenceCount > 0 ? `Evidence-backed from ${evidenceCount.toFixed(0)} signals.` : "");
+    const facts = [];
+    if (evidenceCount > 0) facts.push(`<div><span>Evidence count</span><strong>${escapeHtml(evidenceCount.toFixed(0))}</strong></div>`);
+    if (sourceCount > 0) facts.push(`<div><span>Source count</span><strong>${escapeHtml(sourceCount.toFixed(0))}</strong></div>`);
+    if (lastUpdated) facts.push(`<div><span>Last updated</span><strong>${escapeHtml(lastUpdated)}</strong></div>`);
+    if (isMeaningfulDisplayValue(confidenceReason)) facts.push(`<div><span>Confidence reason</span><strong>${escapeHtml(confidenceReason)}</strong></div>`);
+    return facts.join("");
   }
 
   function persistIndustryExportContext(type, payload) {
@@ -2143,6 +2258,13 @@ function setupDashboard(root) {
   function renderIndustryTrendCards(items = []) {
     if (!industryTrendsGrid) return;
     const list = Array.isArray(items) ? items : [];
+    if (industryTrendsSection) {
+      industryTrendsSection.hidden = list.length === 0;
+    }
+    if (!list.length) {
+      industryTrendsGrid.innerHTML = "";
+      return;
+    }
     industryTrendsGrid.innerHTML = list.length
       ? list.map((item, index) => `
         <article class="industry-card glass-panel" data-industry-trend-index="${index}">
@@ -2156,84 +2278,216 @@ function setupDashboard(root) {
           <p>${escapeHtml(item.executive_summary || item.summary || "")}</p>
           <div class="industry-card__facts">
             <div><span>Growth score</span><strong>${escapeHtml(safeNumber(item.growth_score).toFixed(0))}%</strong></div>
-            <div><span>Source count</span><strong>${escapeHtml(item.source_count ?? 0)}</strong></div>
-            <div><span>Last updated</span><strong>${escapeHtml(formatDate(item.last_updated || item.updated_at || item.created_at))}</strong></div>
-            ${renderIndustryEvidenceFacts(item)}
-          </div>
-          <div class="industry-chip-list industry-chip-list--stack">
-            ${renderIndustryChips(item.source_notes, "Reference note")}
           </div>
         </article>
       `).join("")
-      : `<article class="industry-card glass-panel"><p>No industry trends found.</p></article>`;
+      : "";
   }
 
   function renderIndustryCompetitorCards(items = []) {
     if (!industryCompetitorsGrid) return;
-    const list = Array.isArray(items) ? items : [];
+    const incoming = Array.isArray(items)
+      ? items
+          .filter((item) => safeNumber(item?.evidence_count ?? item?.source_count) > 0)
+          .sort((left, right) => safeNumber(right.threat_score ?? right.momentum_score) - safeNumber(left.threat_score ?? left.momentum_score))
+      : [];
+    const deduped = new Map();
+    incoming.forEach((item) => {
+      const key = normalizeIndustryKey([
+        item?.name || item?.competitor_name,
+        item?.strategic_position || item?.positioning,
+        item?.focus_area,
+      ]) || String(item?.name || item?.competitor_name || "");
+      if (!key) return;
+      const existing = deduped.get(key);
+      if (!existing) {
+        deduped.set(key, { ...item });
+        return;
+      }
+      existing.threat_score = Math.max(safeNumber(existing.threat_score), safeNumber(item.threat_score));
+      existing.evidence_count = Math.max(safeNumber(existing.evidence_count), safeNumber(item.evidence_count));
+      existing.source_count = Math.max(safeNumber(existing.source_count), safeNumber(item.source_count));
+      existing.business_impact = existing.business_impact || item.business_impact || item.activity_summary || "";
+      existing.recent_signals = Array.isArray(existing.recent_signals)
+        ? [...existing.recent_signals, ...(Array.isArray(item.recent_signals) ? item.recent_signals : [])]
+        : (Array.isArray(item.recent_signals) ? item.recent_signals : []);
+    });
+    const list = Array.from(deduped.values()).slice(0, 5);
+    if (industryCompetitorsSection) {
+      industryCompetitorsSection.hidden = list.length === 0;
+    }
+    if (!list.length) {
+      industryCompetitorsGrid.innerHTML = "";
+      return;
+    }
     industryCompetitorsGrid.innerHTML = list.length
       ? list.map((item) => `
-        <article class="industry-card glass-panel">
+        <article class="industry-card glass-panel industry-card--competitor">
           <div class="industry-card__header">
             <div>
-              <span class="industry-card__eyebrow">Competitor</span>
               <h3>${escapeHtml(item.name || item.competitor_name || "Competitor")}</h3>
             </div>
-            <span class="trend-badge trend-badge--source">${escapeHtml(safeNumber(item.momentum_score || item.market_momentum_score).toFixed(0))}%</span>
+            <span class="trend-badge trend-badge--mode">${escapeHtml(renderIndustryScoreLabel(item.threat_score ?? item.momentum_score, "% threat", item))}</span>
           </div>
-          <p>${escapeHtml(item.activity_summary || "")}</p>
           <div class="industry-card__facts">
-            <div><span>Focus area</span><strong>${escapeHtml(item.focus_area || "Enterprise AI")}</strong></div>
-            <div><span>Strategic position</span><strong>${escapeHtml(item.strategic_position || item.positioning || "Market active")}</strong></div>
-            <div><span>Last updated</span><strong>${escapeHtml(formatDate(item.last_updated || item.updated_at || item.created_at))}</strong></div>
-            ${renderIndustryEvidenceFacts(item)}
+            ${isMeaningfulDisplayValue(item.strategic_position || item.positioning) ? `<div><span>Strategic position</span><strong>${escapeHtml(item.strategic_position || item.positioning)}</strong></div>` : ""}
+            ${isMeaningfulDisplayValue(item.business_impact || item.activity_summary) ? `<div><span>Business impact</span><strong>${escapeHtml(item.business_impact || item.activity_summary)}</strong></div>` : ""}
+          </div>
+          <div>
+            ${renderIndustrySignalBullets(item.recent_signals || item.strengths || []) ? `<div><span class="industry-summary-card__label">Key signals</span>${renderIndustrySignalBullets(item.recent_signals || item.strengths || [])}</div>` : ""}
           </div>
         </article>
       `).join("")
-      : `<article class="industry-card glass-panel"><p>No competitor intelligence found.</p></article>`;
+      : "";
   }
 
   function renderIndustryInsightCards(items = []) {
     if (!industryInsightsGrid) return;
-    const list = Array.isArray(items) ? items : [];
-    industryInsightsGrid.innerHTML = list.length
-      ? list.map((item) => `
+    const normalizedItems = Array.isArray(items) ? items : [];
+    const merged = [];
+    const seen = new Map();
+
+    const normalizeInsightKey = (item) => {
+      const body = [
+        item?.what_is_trending,
+        item?.why_it_matters,
+        item?.business_impact,
+        item?.recommended_action,
+      ]
+        .map((value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " "))
+        .filter(Boolean)
+        .join("|");
+      return body.replace(/[^\w| ]+/g, "");
+    };
+
+    const meaningfulText = (value) => {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      const normalized = text.toLowerCase();
+      if (["n/a", "na", "none", "null", "unavailable", "just now"].includes(normalized)) return "";
+      return text;
+    };
+
+    for (const item of normalizedItems) {
+      if (!item || typeof item !== "object") continue;
+      const title = meaningfulText(item.insight_title || item.title || item.summary || item.what_is_trending || item.business_impact || item.recommended_action || item.insight_type || item.priority);
+      const trending = meaningfulText(item.what_is_trending || item.summary);
+      const why = meaningfulText(item.why_it_matters || item.reason);
+      const impact = meaningfulText(item.business_impact || item.impact);
+      const action = meaningfulText(item.recommended_action || item.recommendation);
+      const evidence = safeNumber(item.evidence_count ?? item.source_count ?? 0);
+      const detailCount = [trending, why, impact, action].filter(Boolean).length;
+      const hasContent = Boolean(detailCount > 0);
+      if (!hasContent) continue;
+
+      const key = normalizeInsightKey(item) || `${title}|${trending}|${why}|${impact}|${action}`;
+      const existing = seen.get(key);
+      if (!existing) {
+        const record = {
+          ...item,
+          insight_title: title,
+          what_is_trending: trending,
+          why_it_matters: why,
+          business_impact: impact,
+          recommended_action: action,
+          evidence_count: evidence,
+          source_count: safeNumber(item.source_count ?? 0),
+        };
+        seen.set(key, record);
+        merged.push(record);
+      } else {
+        existing.evidence_count = Math.max(existing.evidence_count || 0, evidence);
+        existing.source_count = Math.max(existing.source_count || 0, safeNumber(item.source_count ?? 0));
+        existing.what_is_trending = existing.what_is_trending || trending;
+        existing.why_it_matters = existing.why_it_matters || why;
+        existing.business_impact = existing.business_impact || impact;
+        existing.recommended_action = existing.recommended_action || action;
+        if (!existing.insight_title) {
+          existing.insight_title = title || existing.insight_title;
+        }
+      }
+    }
+
+    merged.sort((left, right) => {
+      const leftRank = safeNumber(left?.evidence_count ?? left?.source_count ?? 0);
+      const rightRank = safeNumber(right?.evidence_count ?? right?.source_count ?? 0);
+      if (rightRank !== leftRank) return rightRank - leftRank;
+      return String(right?.insight_title || "").length - String(left?.insight_title || "").length;
+    });
+    const list = merged.slice(0, 3);
+    if (!list.length) {
+      industryInsightsGrid.innerHTML = "";
+      const section = industryInsightsSection || industryInsightsGrid.closest(".industry-section");
+      if (section) section.hidden = true;
+      return;
+    }
+
+    const section = industryInsightsSection || industryInsightsGrid.closest(".industry-section");
+    if (section) section.hidden = false;
+    industryInsightsGrid.innerHTML = list.map((item) => {
+      const blocks = [];
+      if (meaningfulText(item.what_is_trending)) {
+        blocks.push(`<div class="industry-insight__block"><span>What is trending?</span><p>${escapeHtml(item.what_is_trending)}</p></div>`);
+      }
+      if (meaningfulText(item.why_it_matters)) {
+        blocks.push(`<div class="industry-insight__block"><span>Why it is important</span><p>${escapeHtml(item.why_it_matters)}</p></div>`);
+      }
+      if (meaningfulText(item.business_impact)) {
+        blocks.push(`<div class="industry-insight__block"><span>Business impact</span><p>${escapeHtml(item.business_impact)}</p></div>`);
+      }
+      if (meaningfulText(item.recommended_action)) {
+        blocks.push(`<div class="industry-insight__block industry-insight__block--action"><span>Recommended action</span><p>${escapeHtml(item.recommended_action)}</p></div>`);
+      }
+      const facts = renderIndustryEvidenceFacts(item);
+      return `
         <article class="industry-card industry-card--insight glass-panel">
           <div class="industry-card__header">
             <div>
-              <span class="industry-card__eyebrow">${escapeHtml(item.priority || item.insight_type || "Insight")}</span>
-              <h3>${escapeHtml(item.insight_title || "Executive insight")}</h3>
+              ${meaningfulText(item.priority || item.insight_type) ? `<span class="industry-card__eyebrow">${escapeHtml(item.priority || item.insight_type)}</span>` : ""}
+              ${meaningfulText(item.insight_title) ? `<h3>${escapeHtml(item.insight_title)}</h3>` : ""}
             </div>
           </div>
-          <div class="industry-insight__block">
-            <span>What is trending?</span>
-            <p>${escapeHtml(item.what_is_trending || "")}</p>
-          </div>
-          <div class="industry-insight__block">
-            <span>Why it is important</span>
-            <p>${escapeHtml(item.why_it_matters || "")}</p>
-          </div>
-          <div class="industry-insight__block">
-            <span>Business impact</span>
-            <p>${escapeHtml(item.business_impact || "")}</p>
-          </div>
-          <div class="industry-insight__block industry-insight__block--action">
-            <span>Recommended action</span>
-            <p>${escapeHtml(item.recommended_action || "")}</p>
-          </div>
-          <div class="industry-card__facts">
-            ${renderIndustryEvidenceFacts(item)}
-          </div>
+          ${blocks.join("")}
+          ${facts ? `<div class="industry-card__facts">${facts}</div>` : ""}
         </article>
-      `).join("")
-      : `<article class="industry-card glass-panel"><p>No industry insights found.</p></article>`;
+      `;
+    }).join("");
   }
 
   function renderIndustryOpportunityCards(items = []) {
     if (!industryOpportunitiesGrid) return;
-    const list = Array.isArray(items)
+    const incoming = Array.isArray(items)
       ? items.filter((item) => safeNumber(item?.evidence_count ?? item?.source_count) > 0)
       : [];
+    const deduped = new Map();
+    incoming.forEach((item) => {
+      const key = normalizeIndustryKey([
+        item?.opportunity_name || item?.opportunity || item?.title,
+        item?.summary || item?.reason,
+        item?.business_value || item?.impact,
+      ]) || String(item?.opportunity_name || item?.opportunity || item?.title || "");
+      if (!key) return;
+      const existing = deduped.get(key);
+      if (!existing) {
+        deduped.set(key, { ...item });
+        return;
+      }
+      existing.opportunity_score = Math.max(safeNumber(existing.opportunity_score ?? existing.score), safeNumber(item.opportunity_score ?? item.score));
+      existing.confidence_score = Math.max(safeNumber(existing.confidence_score ?? existing.confidence), safeNumber(item.confidence_score ?? item.confidence));
+      existing.evidence_count = Math.max(safeNumber(existing.evidence_count), safeNumber(item.evidence_count));
+      existing.source_count = Math.max(safeNumber(existing.source_count), safeNumber(item.source_count));
+      existing.supporting_evidence = Array.isArray(existing.supporting_evidence)
+        ? [...existing.supporting_evidence, ...(Array.isArray(item.supporting_evidence) ? item.supporting_evidence : [])]
+        : (Array.isArray(item.supporting_evidence) ? item.supporting_evidence : []);
+    });
+    const list = Array.from(deduped.values()).slice(0, 5);
+    if (industryOpportunitiesSection) {
+      industryOpportunitiesSection.hidden = list.length === 0;
+    }
+    if (!list.length) {
+      industryOpportunitiesGrid.innerHTML = "";
+      return;
+    }
     industryOpportunitiesGrid.innerHTML = list.length
       ? list.map((item) => `
         <article class="industry-card glass-panel industry-card--opportunity">
@@ -2244,26 +2498,28 @@ function setupDashboard(root) {
             </div>
             <span class="trend-badge trend-badge--mode">${escapeHtml(getOpportunityScoreValue(item).toFixed(0))}%</span>
           </div>
-          <p>${escapeHtml(item.summary || item.reason || "")}</p>
           <div class="industry-card__facts">
-            <div><span>Confidence</span><strong>${escapeHtml(`${safeNumber(item.confidence_score ?? item.confidence).toFixed(0)}%`)}</strong></div>
-            <div><span>Supporting evidence</span><strong>${renderOpportunityEvidenceSummary(item)}</strong></div>
-            <div><span>Business impact</span><strong>${escapeHtml(item.business_value || item.impact || "Commercial upside")}</strong></div>
-            <div><span>Recommended action</span><strong>${escapeHtml(item.recommended_action || "Near-term execution")}</strong></div>
-            <div><span>Source count</span><strong>${escapeHtml(String(safeNumber(item.source_count).toFixed(0)))}</strong></div>
-            <div><span>Evidence count</span><strong>${escapeHtml(String(safeNumber(item.evidence_count).toFixed(0)))}</strong></div>
-            <div><span>Last updated</span><strong>${escapeHtml(formatDate(item.last_updated || item.updated_at || item.created_at))}</strong></div>
+            ${safeNumber(item.confidence_score ?? item.confidence) > 0 ? `<div><span>Confidence</span><strong>${escapeHtml(`${safeNumber(item.confidence_score ?? item.confidence).toFixed(0)}%`)}</strong></div>` : ""}
+            ${isMeaningfulDisplayValue(item.summary || item.reason || item.business_value || item.impact) ? `<div><span>Key insight</span><strong>${escapeHtml(item.summary || item.reason || item.business_value || item.impact)}</strong></div>` : ""}
+            ${isMeaningfulDisplayValue(item.business_value || item.impact) ? `<div><span>Business impact</span><strong>${escapeHtml(item.business_value || item.impact)}</strong></div>` : ""}
+            ${isMeaningfulDisplayValue(item.target_buyer || item.strategic_position || item.urgency) ? `<div><span>Strategic position</span><strong>${escapeHtml(item.target_buyer || item.strategic_position || item.urgency)}</strong></div>` : ""}
           </div>
+          ${renderIndustrySignalBullets(item.supporting_evidence || item.signal_inputs?.matched_competitors || [item.summary || item.reason || item.business_value || item.impact]) ? `
+            <div>
+              <span class="industry-summary-card__label">Key signals</span>
+              ${renderIndustrySignalBullets(item.supporting_evidence || item.signal_inputs?.matched_competitors || [item.summary || item.reason || item.business_value || item.impact])}
+            </div>
+          ` : ""}
         </article>
       `).join("")
-      : `<article class="industry-card glass-panel"><p>No evidence-backed market opportunities found.</p></article>`;
+      : "";
   }
 
   function renderOpportunityEvidenceSummary(item = {}) {
     const entries = Array.isArray(item.supporting_evidence) ? item.supporting_evidence : [];
     const competitorSignals = Array.isArray(item.signal_inputs?.matched_competitors) ? item.signal_inputs.matched_competitors.filter(Boolean) : [];
     if (!entries.length) {
-      return escapeHtml(item.confidence_reason || "Evidence-backed signal");
+      return "";
     }
     const parts = entries.slice(0, 2).map((entry) => {
       const label = escapeHtml(entry?.label || "Signal");
@@ -2272,15 +2528,40 @@ function setupDashboard(root) {
     });
     if (competitorSignals.length) {
       parts.push(`Competitor signals: ${escapeHtml(String(competitorSignals.length))}`);
-    } else {
-      parts.push("Competitor signals: None detected");
     }
     return parts.join(" | ");
   }
 
   function renderIndustryRecommendationCards(items = []) {
     if (!industryRecommendationsGrid) return;
-    const list = Array.isArray(items) ? items : [];
+    const incoming = Array.isArray(items) ? items : [];
+    const deduped = new Map();
+    incoming.forEach((item) => {
+      const key = normalizeIndustryKey([
+        item?.recommended_action || item?.action,
+        item?.reason,
+        item?.trend,
+      ]) || String(item?.recommended_action || item?.action || "");
+      if (!key) return;
+      const existing = deduped.get(key);
+      if (!existing) {
+        deduped.set(key, { ...item });
+        return;
+      }
+      existing.confidence_score = Math.max(safeNumber(existing.confidence_score), safeNumber(item.confidence_score));
+      existing.evidence_count = Math.max(safeNumber(existing.evidence_count), safeNumber(item.evidence_count));
+      existing.source_count = Math.max(safeNumber(existing.source_count), safeNumber(item.source_count));
+      existing.reason = existing.reason || item.reason || "";
+      existing.impact = existing.impact || item.impact || "";
+    });
+    const list = Array.from(deduped.values()).slice(0, 3);
+    if (industryRecommendationsSection) {
+      industryRecommendationsSection.hidden = list.length === 0;
+    }
+    if (!list.length) {
+      industryRecommendationsGrid.innerHTML = "";
+      return;
+    }
     industryRecommendationsGrid.innerHTML = list.length
       ? list.map((item) => `
         <article class="industry-card industry-card--insight glass-panel">
@@ -2289,48 +2570,178 @@ function setupDashboard(root) {
               <span class="industry-card__eyebrow">${escapeHtml(item.trend || "Recommendation")}</span>
               <h3>${escapeHtml(item.recommended_action || "Recommended action")}</h3>
             </div>
-            <span class="trend-badge trend-badge--mode">${escapeHtml(safeNumber(item.confidence_score).toFixed(0))}% confidence</span>
+            <span class="trend-badge trend-badge--mode">${escapeHtml(renderIndustryScoreLabel(item.confidence_score, "% confidence", item))}</span>
           </div>
-          <div class="industry-insight__block">
-            <span>Reason</span>
-            <p>${escapeHtml(item.reason || "")}</p>
-          </div>
-          <div class="industry-insight__block">
-            <span>Impact</span>
-            <p>${escapeHtml(item.impact || "")}</p>
-          </div>
-          <div class="industry-insight__block industry-insight__block--action">
-            <span>Recommended action</span>
-            <p>${escapeHtml(item.recommended_action || "")}</p>
-          </div>
-          <div class="industry-card__facts">
-            ${renderIndustryEvidenceFacts(item)}
-          </div>
+          ${isMeaningfulDisplayValue(item.reason) ? `<div class="industry-insight__block"><span>Why it matters</span><p>${escapeHtml(item.reason)}</p></div>` : ""}
+          ${isMeaningfulDisplayValue(item.impact) ? `<div class="industry-insight__block"><span>Business impact</span><p>${escapeHtml(item.impact)}</p></div>` : ""}
+          ${isMeaningfulDisplayValue(item.recommended_action) ? `<div class="industry-insight__block industry-insight__block--action"><span>Recommended action</span><p>${escapeHtml(item.recommended_action)}</p></div>` : ""}
         </article>
       `).join("")
-      : `<article class="industry-card glass-panel"><p>No executive recommendations found.</p></article>`;
+      : "";
   }
 
   function renderIndustryKeywordGroups(items = []) {
     const grouped = groupIndustryKeywords(items);
+    let hasAny = false;
     if (industryKeywordsGovernance) {
-      industryKeywordsGovernance.innerHTML = renderIndustryChips(grouped["Top AI Governance Keywords"]?.map((item) => item.keyword), "No governance keywords yet");
+      const governanceItems = (grouped["Top AI Governance Keywords"] || []).map((item) => item.keyword).filter(Boolean).slice(0, 6);
+      industryKeywordsGovernance.innerHTML = governanceItems.length ? renderIndustryChips(governanceItems) : "";
+      setIndustryCardVisibility(industryKeywordsGovernance, governanceItems.length > 0);
+      hasAny = hasAny || governanceItems.length > 0;
     }
     if (industryKeywordsGrowing) {
-      industryKeywordsGrowing.innerHTML = renderIndustryChips(grouped["Fastest Growing Keywords"]?.map((item) => item.keyword), "No growth keywords yet");
+      const growingItems = (grouped["Fastest Growing Keywords"] || []).map((item) => item.keyword).filter(Boolean).slice(0, 6);
+      industryKeywordsGrowing.innerHTML = growingItems.length ? renderIndustryChips(growingItems) : "";
+      setIndustryCardVisibility(industryKeywordsGrowing, growingItems.length > 0);
+      hasAny = hasAny || growingItems.length > 0;
     }
     if (industryKeywordsAdoption) {
-      industryKeywordsAdoption.innerHTML = renderIndustryChips(grouped["Enterprise Adoption Keywords"]?.map((item) => item.keyword), "No adoption keywords yet");
+      const adoptionItems = (grouped["Enterprise Adoption Keywords"] || []).map((item) => item.keyword).filter(Boolean).slice(0, 6);
+      industryKeywordsAdoption.innerHTML = adoptionItems.length ? renderIndustryChips(adoptionItems) : "";
+      setIndustryCardVisibility(industryKeywordsAdoption, adoptionItems.length > 0);
+      hasAny = hasAny || adoptionItems.length > 0;
+    }
+    if (industryKeywordsSection) {
+      industryKeywordsSection.hidden = !hasAny;
     }
   }
 
-  function renderIndustryReport(report) {
-    if (!report) return;
-    if (industryReportTopTrends) industryReportTopTrends.innerHTML = renderIndustryList(report.top_trends, "No top trends yet");
-    if (industryReportCompetitors) industryReportCompetitors.innerHTML = renderIndustryList(report.competitor_highlights, "No competitor highlights yet");
-    if (industryReportRisks) industryReportRisks.innerHTML = renderIndustryList(report.strategic_risks, "No strategic risks yet");
-    if (industryReportOpportunities) industryReportOpportunities.innerHTML = renderIndustryList(report.strategic_opportunities, "No strategic opportunities yet");
-    if (industryReportRecommendations) industryReportRecommendations.innerHTML = renderIndustryList(report.executive_recommendations, "No recommendations yet");
+  function renderIndustryReport(payload = {}) {
+    const hideIndustryReport = () => {
+      if (industryReportRecommendations) {
+        industryReportRecommendations.innerHTML = "";
+        industryReportRecommendations.hidden = true;
+        industryReportRecommendations.style.display = "none";
+      }
+      if (industryReportsSection) {
+        industryReportsSection.hidden = true;
+        industryReportsSection.style.display = "none";
+      }
+    };
+
+    const report = payload.report || {};
+    const trends = (Array.isArray(payload.trends) ? payload.trends : []).filter((item) => safeNumber(item?.momentum_score ?? item?.growth_score) > 0);
+    const competitors = (Array.isArray(payload.competitors) ? payload.competitors : []).filter((item) => safeNumber(item?.evidence_count ?? item?.source_count ?? item?.threat_score ?? item?.momentum_score) > 0);
+    const opportunities = (Array.isArray(payload.opportunities) ? payload.opportunities : []).filter((item) => safeNumber(item?.evidence_count ?? item?.source_count ?? item?.opportunity_score ?? item?.confidence_score) > 0);
+    const insights = (Array.isArray(payload.insights) ? payload.insights : []).filter((item) => safeNumber(item?.evidence_count ?? item?.source_count) > 0 || isMeaningfulDisplayValue(item?.recommended_action || item?.business_impact || item?.what_is_trending));
+    const recommendations = (Array.isArray(payload.recommendations) ? payload.recommendations : []).filter((item) => safeNumber(item?.evidence_count ?? item?.source_count ?? item?.confidence_score) > 0);
+    const executiveSummary = report.executive_summary || {};
+
+    const scoreOf = (item, keys = []) => {
+      for (const key of keys) {
+        const value = safeNumber(item?.[key]);
+        if (value > 0) return value;
+      }
+      return 0;
+    };
+
+    const positiveAverage = (values = []) => {
+      const filtered = values.map((value) => safeNumber(value)).filter((value) => value > 0);
+      if (!filtered.length) return 0;
+      return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
+    };
+
+    const compactText = (value, limit = 96) => {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      if (!text) return "";
+      const firstClause = text.split(/[.;|]/)[0].trim();
+      if (!firstClause) return "";
+      return firstClause.length > limit ? `${firstClause.slice(0, limit - 1).trim()}…` : firstClause;
+    };
+
+    const sortByScore = (items = [], keys = []) => [...items]
+      .filter((item) => keys.some((key) => safeNumber(item?.[key]) > 0) || Object.values(item || {}).some((value) => isMeaningfulDisplayValue(value)))
+      .sort((left, right) => scoreOf(right, keys) - scoreOf(left, keys));
+
+    const topOpportunity = sortByScore(opportunities, ["opportunity_score", "confidence_score"])[0] || null;
+    const topThreat = sortByScore(competitors, ["threat_score", "momentum_score", "confidence_score"])[0] || null;
+    const topRecommendation = sortByScore(recommendations, ["confidence_score"])[0] || null;
+    const topTrend = sortByScore(trends, ["momentum_score", "growth_score"])[0] || null;
+    const topInsight = [...insights].find((item) => isMeaningfulDisplayValue(item?.recommended_action || item?.business_impact || item?.what_is_trending)) || null;
+
+    const healthSignals = {
+      trends: positiveAverage(trends.map((item) => item?.momentum_score)),
+      opportunities: positiveAverage(opportunities.map((item) => item?.opportunity_score)),
+      recommendations: positiveAverage(recommendations.map((item) => item?.confidence_score)),
+      threatInverse: positiveAverage(competitors.map((item) => 100 - safeNumber(item?.threat_score ?? item?.momentum_score))),
+      insights: positiveAverage(insights.map((item) => {
+        const priority = String(item?.priority || "").trim().toLowerCase();
+        if (priority === "high") return 85;
+        if (priority === "medium") return 65;
+        if (priority === "low") return 45;
+        return 0;
+      })),
+    };
+
+    const healthScore = Object.values(healthSignals).some((value) => value > 0)
+      ? Math.max(0, Math.min(100, Math.round(
+        (healthSignals.trends * 0.3)
+        + (healthSignals.opportunities * 0.3)
+        + (healthSignals.recommendations * 0.2)
+        + (healthSignals.threatInverse * 0.1)
+        + (healthSignals.insights * 0.1)
+      )))
+      : 0;
+
+    const healthLabel = healthScore >= 80 ? "Strong" : healthScore >= 65 ? "Healthy" : healthScore >= 45 ? "Watch" : "At Risk";
+    const topOpportunityText = topOpportunity
+      ? compactText(topOpportunity.opportunity_name || topOpportunity.trend_name || topOpportunity.title || topOpportunity.summary || "", 90)
+      : compactText(executiveSummary.main_opportunity || "", 90);
+    const topThreatText = topThreat
+      ? compactText([
+          topThreat.name || topThreat.competitor_name,
+          topThreat.strategic_position || topThreat.activity_summary,
+        ]
+          .filter(Boolean)
+          .join(" - "), 96)
+      : compactText(executiveSummary.main_risk || "", 96);
+    const strategicFocusText = topRecommendation
+      ? compactText(topRecommendation.recommended_action || topRecommendation.trend || topRecommendation.reason || "", 96)
+      : compactText(executiveSummary.recommended_action || topOpportunity?.trend_name || "", 96);
+    const takeawayBase = [
+      topOpportunityText,
+      topThreatText,
+      strategicFocusText,
+      topTrend?.trend_name,
+      topInsight?.recommended_action || topInsight?.business_impact || topInsight?.what_is_trending,
+    ].filter(Boolean);
+    const executiveTakeawayText = takeawayBase.length
+      ? compactText(`Enterprise AI governance, security, and production readiness remain the strongest opportunities this week${topOpportunityText ? `, led by ${topOpportunityText}` : ""}${topThreatText ? ` and shaped by pressure from ${topThreatText}` : ""}.`, 160)
+      : compactText(executiveSummary.top_signal || executiveSummary.main_opportunity || executiveSummary.recommended_action || "", 160);
+
+    const metrics = [
+      healthScore > 0 ? { label: "Industry Health Score", value: `${healthLabel} (${healthScore}/100)` } : null,
+      topOpportunityText ? { label: "Top Opportunity", value: topOpportunityText } : null,
+      topThreatText ? { label: "Top Competitor Threat", value: topThreatText } : null,
+      strategicFocusText ? { label: "Recommended Strategic Focus", value: strategicFocusText } : null,
+      executiveTakeawayText ? { label: "Executive Takeaway", value: executiveTakeawayText } : null,
+    ].filter(Boolean);
+
+    if (!metrics.length) {
+      hideIndustryReport();
+      return;
+    }
+
+    if (industryReportRecommendations) {
+      industryReportRecommendations.innerHTML = `
+        <div class="industry-report-list">
+          ${metrics.map((item) => `
+            <div class="industry-report-list__item">
+              <strong>${escapeHtml(item.label)}</strong>
+              <span>${escapeHtml(item.value)}</span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+      industryReportRecommendations.hidden = false;
+      industryReportRecommendations.style.display = "";
+      setIndustryCardVisibility(industryReportRecommendations, true);
+    }
+
+    if (industryReportsSection) {
+      industryReportsSection.hidden = false;
+      industryReportsSection.style.display = "";
+    }
   }
 
   function renderIndustrySearchResult(result = null) {
@@ -2343,9 +2754,6 @@ function setupDashboard(root) {
     const momentum = item.momentum || "";
     const summary = item.executive_summary || "";
     const recommendation = item.recommendation || "";
-    const relatedKeywords = Array.isArray(item.related_keywords) ? item.related_keywords : [];
-    const recentNews = Array.isArray(item.recent_news) ? item.recent_news : [];
-    const competitorMentions = Array.isArray(item.competitor_mentions) ? item.competitor_mentions : [];
     const trendHistory = item.trend_history || item.history || null;
 
     if (industrySearchResultCard) {
@@ -2374,6 +2782,10 @@ function setupDashboard(root) {
       if (industrySearchEvidence) industrySearchEvidence.innerHTML = "";
       if (industrySearchNews) industrySearchNews.innerHTML = "";
       if (industrySearchCompetitors) industrySearchCompetitors.innerHTML = "";
+      setIndustryCardVisibility(industrySearchKeywords, false);
+      setIndustryCardVisibility(industrySearchEvidence, false);
+      setIndustryCardVisibility(industrySearchNews, false);
+      setIndustryCardVisibility(industrySearchCompetitors, false);
       renderIndustryTrendHistory(null);
       return;
     }
@@ -2385,28 +2797,14 @@ function setupDashboard(root) {
     if (industrySearchConfidence) industrySearchConfidence.textContent = `${confidenceScore.toFixed(0)}% confidence`;
     if (industrySearchSummary) industrySearchSummary.textContent = summary;
     if (industrySearchRecommendation) industrySearchRecommendation.textContent = recommendation;
-    if (industrySearchKeywords) {
-      industrySearchKeywords.innerHTML = renderIndustryChips(relatedKeywords, "No related keywords found");
-    }
-    if (industrySearchEvidence) {
-      industrySearchEvidence.innerHTML = renderIndustryEvidenceFacts(item);
-    }
-    if (industrySearchNews) {
-      industrySearchNews.innerHTML = recentNews.length
-        ? recentNews.map((newsItem) => renderIndustryNewsCard(newsItem)).join("")
-        : "";
-    }
-    if (industrySearchCompetitors) {
-      industrySearchCompetitors.innerHTML = competitorMentions.length
-        ? competitorMentions.map((competitor) => `
-          <div class="industry-report-list__item">
-            <strong>${escapeHtml(competitor.name || "Competitor")}</strong>
-            <span>${escapeHtml(competitor.activity_summary || competitor.strategic_position || "")}</span>
-            <span>${escapeHtml([competitor.focus_area, competitor.momentum_score ? `${safeNumber(competitor.momentum_score).toFixed(0)} momentum` : ""].filter(Boolean).join(" • "))}</span>
-          </div>
-        `).join("")
-        : "";
-    }
+    if (industrySearchKeywords) industrySearchKeywords.innerHTML = "";
+    if (industrySearchEvidence) industrySearchEvidence.innerHTML = "";
+    if (industrySearchNews) industrySearchNews.innerHTML = "";
+    if (industrySearchCompetitors) industrySearchCompetitors.innerHTML = "";
+    setIndustryCardVisibility(industrySearchKeywords, false);
+    setIndustryCardVisibility(industrySearchEvidence, false);
+    setIndustryCardVisibility(industrySearchNews, false);
+    setIndustryCardVisibility(industrySearchCompetitors, false);
     renderIndustryTrendHistory(trendHistory);
   }
 
@@ -2428,47 +2826,24 @@ function setupDashboard(root) {
 
     const executiveVerdict = item.executive_verdict || {};
     const keyScores = item.key_scores || {};
-    const mlPredictions = item.ml_predictions || {};
-    const contributingFactors = item.top_contributing_factors || {};
-    const opportunities = Array.isArray(item.top_opportunities) ? item.top_opportunities : [];
-    const risks = Array.isArray(item.top_risks) ? item.top_risks : [];
-    const nextActions = item.recommended_next_actions || {};
+    const launchPrediction = item.ml_predictions?.launch_readiness || {};
+    const riskPrediction = item.ml_predictions?.risk_classification || {};
+    const revenuePrediction = item.ml_predictions?.revenue_opportunity || {};
     const scoreCards = [
-      { label: "Market Demand", value: keyScores.market_demand ?? item.market_demand_score },
-      { label: "Enterprise Fit", value: keyScores.enterprise_fit ?? item.enterprise_fit_score ?? item.strategic_fit_score },
-      { label: "Revenue Opportunity", value: keyScores.revenue_opportunity ?? item.revenue_opportunity_score },
-      { label: "Competitive Advantage", value: keyScores.competitive_advantage ?? item.competitive_advantage_score },
-      { label: "Risk", value: keyScores.risk ?? item.risk_score },
-      { label: "Launch Readiness", value: keyScores.launch_readiness ?? item.overall_launch_readiness_score },
+      { label: "Impact Score", value: keyScores.market_demand ?? item.market_demand_score ?? item.overall_launch_readiness_score },
+      { label: "Risk Level", value: riskPrediction.predicted_label || item.risk_classification_label || item.risk_level || "Medium Risk", isText: true },
+      { label: "Launch Readiness", value: launchPrediction.predicted_score ?? keyScores.launch_readiness ?? item.overall_launch_readiness_score },
+      { label: "Revenue Potential", value: revenuePrediction.predicted_score ?? keyScores.revenue_opportunity ?? item.revenue_opportunity_score },
     ];
     const metricCards = scoreCards
       .map((card) => `
         <div class="industry-search-result__panel">
           <span class="industry-summary-card__label">${escapeHtml(card.label)}</span>
-          <strong>${escapeHtml(`${safeNumber(card.value).toFixed(0)} / 100`)}</strong>
+          <strong>${escapeHtml(card.isText ? String(card.value || "") : `${safeNumber(card.value).toFixed(0)} / 100`)}</strong>
         </div>
       `)
       .join("");
-    const immediateActions = Array.isArray(nextActions.immediate_actions) ? nextActions.immediate_actions : [];
-    const shortTermActions = Array.isArray(nextActions.short_term_actions) ? nextActions.short_term_actions : [];
-    const launchActions = Array.isArray(nextActions.launch_actions) ? nextActions.launch_actions : [];
-    const launchPrediction = mlPredictions.launch_readiness || {};
-    const riskPrediction = mlPredictions.risk_classification || {};
-    const revenuePrediction = mlPredictions.revenue_opportunity || {};
-    const factorGroups = [
-      {
-        title: "Launch Readiness Factors",
-        items: Array.isArray(contributingFactors.launch_readiness) ? contributingFactors.launch_readiness : [],
-      },
-      {
-        title: "Risk Factors",
-        items: Array.isArray(contributingFactors.risk_classification) ? contributingFactors.risk_classification : [],
-      },
-      {
-        title: "Revenue Factors",
-        items: Array.isArray(contributingFactors.revenue_opportunity) ? contributingFactors.revenue_opportunity : [],
-      },
-    ];
+    const finalRecommendation = item.final_recommendation || item.launch_priority_reason || item.recommended_launch_priority || executiveVerdict.explanation || "Validate first.";
 
     if (industryProductImpactResultBody) {
       industryProductImpactResultBody.innerHTML = `
@@ -2486,91 +2861,8 @@ function setupDashboard(root) {
         <div class="industry-search-result__grid">
           ${metricCards}
           <div class="industry-search-result__panel industry-search-result__panel--wide">
-            <span class="industry-summary-card__label">Executive Verdict</span>
-            <p>${escapeHtml(executiveVerdict.explanation || item.executive_launch_readiness_report || "No verdict available.")}</p>
-          </div>
-          <div class="industry-search-result__panel industry-search-result__panel--wide">
             <span class="industry-summary-card__label">Final Recommendation</span>
-            <p>${escapeHtml(item.final_recommendation || item.launch_priority_reason || item.recommended_launch_priority || "Validate first.")}</p>
-          </div>
-          <div class="industry-search-result__panel industry-search-result__panel--wide">
-            <span class="industry-summary-card__label">ML Predictions</span>
-            <div class="industry-report-list">
-              <div class="industry-report-list__item">
-                <strong>Launch Readiness Prediction</strong>
-                <span>${escapeHtml(`${safeNumber(launchPrediction.predicted_score ?? item.predicted_launch_readiness_score ?? keyScores.launch_readiness).toFixed(0)} / 100`)}</span>
-                <span>${escapeHtml(`${safeNumber(launchPrediction.confidence_score ?? item.prediction_confidence).toFixed(0)}% confidence`)}</span>
-              </div>
-              <div class="industry-report-list__item">
-                <strong>Risk Classification</strong>
-                <span>${escapeHtml(riskPrediction.predicted_label || item.risk_classification_label || "Medium Risk")}</span>
-                <span>${escapeHtml(`${safeNumber(riskPrediction.risk_probability ?? item.predicted_risk_probability).toFixed(2)} probability`)}</span>
-              </div>
-              <div class="industry-report-list__item">
-                <strong>Revenue Opportunity Prediction</strong>
-                <span>${escapeHtml(`${safeNumber(revenuePrediction.predicted_score ?? item.predicted_revenue_opportunity_score ?? keyScores.revenue_opportunity).toFixed(0)} / 100`)}</span>
-                <span>${escapeHtml(`${safeNumber(revenuePrediction.confidence_score ?? item.prediction_confidence).toFixed(0)}% confidence`)}</span>
-              </div>
-            </div>
-          </div>
-          <div class="industry-search-result__panel industry-search-result__panel--wide">
-            <span class="industry-summary-card__label">Top Contributing Factors</span>
-            <div class="industry-search-result__split">
-              ${factorGroups.map((group) => `
-                <div>
-                  <span class="industry-summary-card__label">${escapeHtml(group.title)}</span>
-                  <div class="industry-report-list">
-                    ${
-                      group.items.length
-                        ? group.items.map((entry) => `
-                          <div class="industry-report-list__item">
-                            <strong>${escapeHtml(entry.factor || "Factor")}</strong>
-                            <span>${escapeHtml(`Contribution Direction: ${entry.contribution_direction || entry.direction || "Positive"}`)}</span>
-                            <span>${escapeHtml(`Signed Contribution: ${entry.signed_display || `${safeNumber(entry.signed_impact ?? entry.impact).toFixed(2)}`}`)}</span>
-                            <span>${escapeHtml(`Business Explanation: ${entry.business_explanation || "Model explanation unavailable."}`)}</span>
-                          </div>
-                        `).join("")
-                        : `<div class="industry-report-list__item"><strong>No factor data</strong><span>Model detail unavailable.</span></div>`
-                    }
-                  </div>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-          <div class="industry-search-result__panel industry-search-result__panel--wide">
-            <span class="industry-summary-card__label">Top Opportunities</span>
-            <div class="industry-report-list">
-              ${opportunities.length ? opportunities.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry.opportunity || "Opportunity")}</strong><span>${escapeHtml(entry.business_impact || "")}</span></div>`).join("") : `<div class="industry-report-list__item"><strong>No opportunities identified</strong><span>None identified yet.</span></div>`}
-            </div>
-          </div>
-          <div class="industry-search-result__panel industry-search-result__panel--wide">
-            <span class="industry-summary-card__label">Top Risks</span>
-            <div class="industry-report-list">
-              ${risks.length ? risks.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry.risk || "Risk")}</strong><span>${escapeHtml(entry.mitigation || "")}</span></div>`).join("") : `<div class="industry-report-list__item"><strong>No major risks identified</strong><span>Risk appears manageable.</span></div>`}
-            </div>
-          </div>
-          <div class="industry-search-result__panel industry-search-result__panel--wide">
-            <span class="industry-summary-card__label">Recommended Next Actions</span>
-            <div class="industry-search-result__split">
-              <div>
-                <span class="industry-summary-card__label">Immediate Actions</span>
-                <div class="industry-report-list">
-                  ${immediateActions.length ? immediateActions.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry)}</strong></div>`).join("") : `<div class="industry-report-list__item"><strong>No immediate actions</strong></div>`}
-                </div>
-              </div>
-              <div>
-                <span class="industry-summary-card__label">Short-Term Actions</span>
-                <div class="industry-report-list">
-                  ${shortTermActions.length ? shortTermActions.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry)}</strong></div>`).join("") : `<div class="industry-report-list__item"><strong>No short-term actions</strong></div>`}
-                </div>
-              </div>
-              <div>
-                <span class="industry-summary-card__label">Launch Actions</span>
-                <div class="industry-report-list">
-                  ${launchActions.length ? launchActions.map((entry) => `<div class="industry-report-list__item"><strong>${escapeHtml(entry)}</strong></div>`).join("") : `<div class="industry-report-list__item"><strong>No launch actions</strong></div>`}
-                </div>
-              </div>
-            </div>
+            <p>${escapeHtml(finalRecommendation)}</p>
           </div>
         </div>
       `;
@@ -2601,7 +2893,6 @@ function setupDashboard(root) {
       if (industryCompareEvidence) industryCompareEvidence.innerHTML = "";
       if (industryCompareSummary) industryCompareSummary.textContent = "";
       if (industryCompareStrengths) industryCompareStrengths.innerHTML = "";
-      if (industryCompareWeaknesses) industryCompareWeaknesses.innerHTML = "";
       if (industryCompareNews) industryCompareNews.innerHTML = "";
       if (industryCompareLeftWinsLabel) industryCompareLeftWinsLabel.textContent = "Left wins";
       if (industryCompareRightWinsLabel) industryCompareRightWinsLabel.textContent = "Right wins";
@@ -2631,7 +2922,6 @@ function setupDashboard(root) {
     if (industryCompareEvidence) industryCompareEvidence.innerHTML = renderIndustryEvidenceFacts(item);
     if (industryCompareSummary) industryCompareSummary.textContent = item.executive_summary || "";
     if (industryCompareStrengths) industryCompareStrengths.innerHTML = renderIndustryList(item.strengths || [], "No strengths identified");
-    if (industryCompareWeaknesses) industryCompareWeaknesses.innerHTML = renderIndustryList(item.weaknesses || [], "No weaknesses identified");
     if (industryCompareNews) {
       const recentNews = Array.isArray(item.recent_news) ? item.recent_news : [];
       industryCompareNews.innerHTML = recentNews.length
@@ -2736,6 +3026,7 @@ function setupDashboard(root) {
     const trendList = Array.isArray(trends) ? trends : [];
     const competitorList = Array.isArray(competitors) ? competitors : [];
     const keywordList = Array.isArray(keywords) ? keywords : [];
+    let hasAny = false;
 
     const modelCandidates = keywordList
       .filter((item) => {
@@ -2771,19 +3062,45 @@ function setupDashboard(root) {
       }));
 
     if (industryLeaderboardModels) {
-      industryLeaderboardModels.innerHTML = renderIndustryList(modelCandidates, "No model signals yet");
+      const list = modelCandidates.slice(0, 3);
+      industryLeaderboardModels.innerHTML = list.length ? renderIndustryList(list, "No model signals yet") : "";
+      setIndustryCardVisibility(industryLeaderboardModels, list.length > 0);
+      hasAny = hasAny || list.length > 0;
     }
     if (industryLeaderboardCompanies) {
-      industryLeaderboardCompanies.innerHTML = renderIndustryList(companyCandidates, company?.company_name ? company.company_name : "No company signals yet");
+      const list = companyCandidates.slice(0, 3);
+      industryLeaderboardCompanies.innerHTML = list.length ? renderIndustryList(list, company?.company_name ? company.company_name : "No company signals yet") : "";
+      setIndustryCardVisibility(industryLeaderboardCompanies, list.length > 0);
+      hasAny = hasAny || list.length > 0;
     }
     if (industryLeaderboardConcepts) {
-      industryLeaderboardConcepts.innerHTML = renderIndustryList(conceptCandidates, "No concept signals yet");
+      const list = conceptCandidates.slice(0, 3);
+      industryLeaderboardConcepts.innerHTML = list.length ? renderIndustryList(list, "No concept signals yet") : "";
+      setIndustryCardVisibility(industryLeaderboardConcepts, list.length > 0);
+      hasAny = hasAny || list.length > 0;
+    }
+    if (industryLeaderboardsSection) {
+      industryLeaderboardsSection.hidden = !hasAny;
     }
   }
 
   function renderIndustryTrendHistory(history = null) {
     const item = history || {};
     const points = Array.isArray(item.history) ? item.history : [];
+    const hasMeaningfulSnapshot = item.current_score !== undefined || item.previous_score !== undefined || item.delta !== undefined || item.direction || item.movement_label;
+    const hasMeaningfulHistory = points.length > 1 || hasMeaningfulSnapshot;
+    if (industrySearchHistory) {
+      const panel = industrySearchHistory.closest(".industry-search-result__panel");
+      if (panel) panel.hidden = !hasMeaningfulHistory;
+    }
+    if (!hasMeaningfulHistory) {
+      if (industrySearchHistoryCurrent) industrySearchHistoryCurrent.textContent = "-";
+      if (industrySearchHistoryPrevious) industrySearchHistoryPrevious.textContent = "-";
+      if (industrySearchHistoryDelta) industrySearchHistoryDelta.textContent = "-";
+      if (industrySearchHistoryDirection) industrySearchHistoryDirection.textContent = "-";
+      if (industrySearchHistoryStrip) industrySearchHistoryStrip.innerHTML = "";
+      return;
+    }
     if (industrySearchHistoryCurrent) industrySearchHistoryCurrent.textContent = item.current_score !== undefined ? safeNumber(item.current_score).toFixed(0) : "-";
     if (industrySearchHistoryPrevious) industrySearchHistoryPrevious.textContent = item.previous_score !== undefined ? safeNumber(item.previous_score).toFixed(0) : "-";
     if (industrySearchHistoryDelta) {
@@ -3072,7 +3389,7 @@ function setupDashboard(root) {
     renderIndustryOpportunityCards(opportunities);
     renderIndustryRecommendationCards(recommendations);
     renderIndustryKeywordGroups(keywords);
-    renderIndustryReport(report);
+    renderIndustryReport(payload);
     renderIndustrySourceCoverage(sourceCoverage);
     if (industryReportPdfBtn) {
       industryReportPdfBtn.disabled = false;

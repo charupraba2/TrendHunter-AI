@@ -1961,7 +1961,7 @@ button {
 
 .industry-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
 }
 
@@ -2135,6 +2135,23 @@ button {
 .industry-card__facts strong,
 .industry-insight__block p {
   line-height: 1.55;
+}
+
+.industry-card--competitor {
+  gap: 12px;
+}
+
+.industry-card__signals {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.industry-card__signal {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .industry-card--insight {

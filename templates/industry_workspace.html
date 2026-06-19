@@ -52,7 +52,7 @@
           <p id="industry-company-overview">Loading company intelligence...</p>
         </div>
         <div class="industry-commandbar__meta">
-          <span class="trend-badge trend-badge--mode" id="industry-company-location">Troy, Michigan</span>
+          <span class="trend-badge trend-badge--mode" id="industry-company-location">Troy, Michigan, Chennai</span>
           <span class="trend-badge trend-badge--source" id="industry-company-size">51-200 employees</span>
           <button class="button secondary" id="industry-refresh-btn" type="button">Refresh Industry Data</button>
           <button class="button secondary" id="industry-report-pdf-btn" type="button" disabled>📄 Download PDF Report</button>
@@ -120,7 +120,7 @@
               <div class="industry-search-result__split" id="industry-search-evidence"></div>
             </div>
             <div class="industry-search-result__panel industry-search-result__panel--wide">
-              <span class="industry-summary-card__label">Executive insight</span>
+              <span class="industry-summary-card__label">Summary</span>
               <p id="industry-search-summary"></p>
             </div>
             <div class="industry-search-result__panel industry-search-result__panel--wide">
@@ -202,10 +202,6 @@
             <div class="industry-search-result__panel">
               <span class="industry-summary-card__label">Strengths</span>
               <div class="industry-report-list" id="industry-compare-strengths"></div>
-            </div>
-            <div class="industry-search-result__panel">
-              <span class="industry-summary-card__label">Weaknesses</span>
-              <div class="industry-report-list" id="industry-compare-weaknesses"></div>
             </div>
             <div class="industry-search-result__panel industry-search-result__panel--wide">
               <span class="industry-summary-card__label">Recent News</span>
@@ -323,10 +319,6 @@
 
       <div class="industry-summary-grid" id="industry-summary">
         <article class="industry-summary-card glass-panel">
-          <span class="industry-summary-card__label">Company overview</span>
-          <p id="industry-company-overview-card">Loading company overview...</p>
-        </article>
-        <article class="industry-summary-card glass-panel">
           <span class="industry-summary-card__label">Core focus areas</span>
           <div class="industry-chip-list" id="industry-company-focus"></div>
         </article>
@@ -352,7 +344,7 @@
           <p>OpenAI, Anthropic, DeepMind, Microsoft AI, Perplexity, Cohere</p>
         </article>
         <article class="industry-kpi-card glass-panel">
-          <span>Executive insights</span>
+          <span>Insights</span>
           <strong id="industry-insight-count">0</strong>
           <p>Actionable executive-style signals</p>
         </article>
@@ -459,32 +451,16 @@
         </div>
       </section>
 
-      <section class="industry-section page-section" id="industry-reports" data-page-section="reports" data-tab-panel="reports">
+      <section class="industry-section page-section" id="industry-reports" data-page-section="reports" data-tab-panel="reports" hidden>
         <div class="section-header section-header--compact">
           <div>
-            <p class="eyebrow">Weekly Intelligence Report</p>
-            <h3>Executive report cards for leadership reviews</h3>
+            <p class="eyebrow">Weekly Executive Brief</p>
+            <h3>Board-ready summary for leadership review</h3>
           </div>
         </div>
         <div class="industry-report-grid">
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Top Trends</span>
-            <div id="industry-report-top-trends"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Competitor Highlights</span>
-            <div id="industry-report-competitors"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Strategic Risks</span>
-            <div id="industry-report-risks"></div>
-          </article>
-          <article class="industry-summary-card glass-panel">
-            <span class="industry-summary-card__label">Strategic Opportunities</span>
-            <div id="industry-report-opportunities"></div>
-          </article>
-          <article class="industry-summary-card glass-panel industry-report-grid__wide">
-            <span class="industry-summary-card__label">Executive Recommendations</span>
+          <article class="industry-summary-card glass-panel industry-report-grid__wide" hidden>
+            <span class="industry-summary-card__label">Weekly Executive Brief</span>
             <div id="industry-report-recommendations"></div>
           </article>
         </div>
