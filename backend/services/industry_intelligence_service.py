@@ -31,6 +31,14 @@ from backend.database import (
     IndustryReport,
     IndustryTrend,
     LinkedInPostRecord,
+    get_industry_company,
+    get_industry_competitor_activity,
+    get_industry_insights,
+    get_industry_keywords,
+    get_industry_live_trends,
+    get_industry_opportunities,
+    get_industry_recommendations,
+    get_industry_report,
     get_db_session,
     get_trend_history as db_get_trend_history,
     get_trend_history_leaderboard as db_get_trend_history_leaderboard,
@@ -202,14 +210,118 @@ class IndustryIntelligenceService:
     def refresh(self, force: bool = False) -> dict[str, Any]:
         with self._cache_lock:
             now = _NOW()
+            if not force:
+                persisted_snapshot = self._load_persisted_snapshot()
+                if persisted_snapshot:
+                    self._cached_snapshot = persisted_snapshot
+                    self._last_refresh_at = now
+                    return dict(persisted_snapshot)
             if not force and self._cached_snapshot and self._last_refresh_at and (now - self._last_refresh_at) < timedelta(minutes=10):
                 return dict(self._cached_snapshot)
 
-            snapshot = self._build_snapshot(now)
-            self._persist_snapshot(snapshot)
+            try:
+                snapshot = self._build_snapshot(now)
+                self._persist_snapshot(snapshot)
+            except Exception as exc:
+                logger.exception("Industry refresh failed; using cached industry snapshot instead")
+                snapshot = self._load_persisted_snapshot()
+                if snapshot is None:
+                    from backend.database import _build_live_industry_snapshot
+
+                    fallback = _build_live_industry_snapshot(now)
+                    snapshot = {
+                        "company": fallback.get("company") or {},
+                        "company_signals": {
+                            "company_name": (fallback.get("company") or {}).get("company_name") or COMPANY_NAME,
+                            "website": (fallback.get("company") or {}).get("website") or COMPANY_WEBSITE,
+                            "linkedin_url": (fallback.get("company") or {}).get("linkedin_url") or COMPANY_LINKEDIN,
+                            "positioning": (fallback.get("company") or {}).get("market_positioning") or (fallback.get("company") or {}).get("industry_positioning") or "",
+                            "core_services": (fallback.get("company") or {}).get("core_focus_areas") or [],
+                            "strategic_themes": (fallback.get("company") or {}).get("strategic_themes") or [],
+                            "focus_keywords": (fallback.get("company") or {}).get("focus_keywords") or [],
+                            "product_messaging": (fallback.get("company") or {}).get("content_themes") or [],
+                            "source_notes": (fallback.get("company") or {}).get("source_notes") or [],
+                            "last_updated": (fallback.get("company") or {}).get("last_updated"),
+                        },
+                        "linkedin": {},
+                        "linkedin_posts": [],
+                        "linkedin_themes": {},
+                        "news": [],
+                        "competitor_signals": fallback.get("competitors") or [],
+                        "live_trends": fallback.get("trends") or [],
+                        "keywords": fallback.get("keywords") or [],
+                        "recommendations": fallback.get("recommendations") or [],
+                        "competitor_cards": fallback.get("competitors") or [],
+                        "insights": [],
+                        "opportunities": [],
+                        "report": fallback.get("report") or {},
+                        "documents": [],
+                    }
             self._cached_snapshot = snapshot
             self._last_refresh_at = now
             return snapshot
+
+    def _load_persisted_snapshot(self) -> dict[str, Any] | None:
+        company = get_industry_company() or {}
+        live_trends = get_industry_live_trends()
+        keywords = get_industry_keywords()
+        recommendations = get_industry_recommendations()
+        competitor_cards = get_industry_competitor_activity()
+        insights = get_industry_insights()
+        opportunities = get_industry_opportunities()
+        report = get_industry_report() or {}
+        has_data = any([company, live_trends, keywords, recommendations, competitor_cards, insights, opportunities, report])
+        if not has_data:
+            return None
+
+        linkedin_posts = self._get_cached_linkedin_posts(limit=LINKEDIN_MAX_POSTS)
+        linkedin_themes = self._derive_linkedin_themes(linkedin_posts, [item.get("content", "") for item in linkedin_posts]) if linkedin_posts else {
+            "top_theme": "AI Governance",
+            "emerging_theme": "Enterprise AI",
+            "keyword_ranking": [],
+            "trend_frequency": {},
+            "strategic_narrative": "Recent LinkedIn signals emphasize AI governance and enterprise readiness.",
+        }
+        source_label = linkedin_posts[0].get("source") if linkedin_posts else "Stored LinkedIn cache"
+        linkedin = {
+            **linkedin_themes,
+            "source_status": "cache" if linkedin_posts else "fallback",
+            "source_label": source_label,
+            "source_coverage": [source_label] if source_label else [],
+            "source_notes": [],
+            "posts": linkedin_posts,
+            "themes": linkedin_themes,
+            "last_updated": linkedin_posts[0].get("published_date") if linkedin_posts else None,
+        }
+        company_signals = {
+            "company_name": company.get("company_name") or COMPANY_NAME,
+            "website": company.get("website") or COMPANY_WEBSITE,
+            "linkedin_url": company.get("linkedin_url") or COMPANY_LINKEDIN,
+            "positioning": company.get("market_positioning") or company.get("industry_positioning") or "",
+            "core_services": company.get("core_focus_areas") or [],
+            "strategic_themes": company.get("strategic_themes") or [],
+            "focus_keywords": company.get("focus_keywords") or [],
+            "product_messaging": company.get("content_themes") or [],
+            "source_notes": company.get("source_notes") or [],
+            "last_updated": company.get("last_updated"),
+        }
+        return {
+            "company": company,
+            "company_signals": company_signals,
+            "linkedin": linkedin,
+            "linkedin_posts": linkedin_posts,
+            "linkedin_themes": linkedin_themes,
+            "news": [],
+            "competitor_signals": competitor_cards,
+            "live_trends": live_trends,
+            "keywords": keywords,
+            "recommendations": recommendations,
+            "competitor_cards": competitor_cards,
+            "insights": insights,
+            "opportunities": opportunities,
+            "report": report,
+            "documents": [],
+        }
 
     def get_company_signals(self) -> dict[str, Any]:
         snapshot = self.refresh()

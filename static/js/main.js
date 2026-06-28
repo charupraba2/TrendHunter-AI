@@ -7812,13 +7812,13 @@ function setupDashboard(root) {
   renderIndustryComparison(null);
   renderIndustryLeaderboards();
   loadDashboard();
-  loadIndustryDashboard({ silent: true, forceRefresh: true });
+  loadIndustryDashboard({ silent: true, forceRefresh: false });
   if (state.industry.refreshTimer) {
     window.clearInterval(state.industry.refreshTimer);
   }
   state.industry.refreshTimer = window.setInterval(() => {
     if (state.activeTab === "industry-intelligence" || state.industry.loaded) {
-      loadIndustryDashboard({ silent: true, forceRefresh: true });
+      loadIndustryDashboard({ silent: true, forceRefresh: false });
     }
   }, 300000);
   loadAlerts();

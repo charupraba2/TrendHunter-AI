@@ -1772,7 +1772,6 @@ def _trend_to_dict(row: Trend | None) -> dict | None:
 
 
 def get_industry_company() -> dict | None:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         row = session.query(IndustryCompany).order_by(IndustryCompany.last_updated.desc().nullslast(), IndustryCompany.updated_at.desc(), IndustryCompany.id.desc()).first()
@@ -1782,7 +1781,6 @@ def get_industry_company() -> dict | None:
 
 
 def get_industry_trends(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = session.query(IndustryLiveTrend).order_by(IndustryLiveTrend.momentum_score.desc(), IndustryLiveTrend.growth_score.desc(), IndustryLiveTrend.id.desc()).limit(limit).all()
@@ -1792,7 +1790,6 @@ def get_industry_trends(limit: int = 50) -> list[dict]:
 
 
 def get_industry_competitors(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = session.query(IndustryCompetitorActivity).order_by(IndustryCompetitorActivity.momentum_score.desc(), IndustryCompetitorActivity.id.desc()).limit(limit).all()
@@ -1802,7 +1799,6 @@ def get_industry_competitors(limit: int = 50) -> list[dict]:
 
 
 def get_industry_insights(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = (
@@ -1817,7 +1813,6 @@ def get_industry_insights(limit: int = 50) -> list[dict]:
 
 
 def get_industry_opportunities(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = (
@@ -2031,7 +2026,6 @@ def refresh_industry_live_data(force: bool = False) -> dict:
 
 
 def get_industry_live_trends(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = session.query(IndustryLiveTrend).order_by(IndustryLiveTrend.momentum_score.desc(), IndustryLiveTrend.growth_score.desc(), IndustryLiveTrend.id.desc()).limit(limit).all()
@@ -2041,7 +2035,6 @@ def get_industry_live_trends(limit: int = 50) -> list[dict]:
 
 
 def get_industry_keywords(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = session.query(IndustryKeyword).order_by(IndustryKeyword.keyword_group.asc(), IndustryKeyword.growth_score.desc(), IndustryKeyword.id.asc()).limit(limit).all()
@@ -2051,7 +2044,6 @@ def get_industry_keywords(limit: int = 50) -> list[dict]:
 
 
 def get_industry_competitor_activity(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = (
@@ -2070,7 +2062,6 @@ def get_industry_competitor_activity(limit: int = 50) -> list[dict]:
 
 
 def get_industry_recommendations(limit: int = 50) -> list[dict]:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         rows = session.query(IndustryRecommendation).order_by(IndustryRecommendation.confidence_score.desc(), IndustryRecommendation.id.desc()).limit(limit).all()
@@ -2080,7 +2071,6 @@ def get_industry_recommendations(limit: int = 50) -> list[dict]:
 
 
 def get_industry_report() -> dict | None:
-    refresh_industry_live_data()
     session = get_db_session()
     try:
         row = session.query(IndustryReport).order_by(IndustryReport.generated_at.desc(), IndustryReport.id.desc()).first()
